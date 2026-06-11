@@ -97,7 +97,9 @@ const photoManifest = fs.existsSync(studentPhotosManifestPath)
 const photosByWorkNumber = new Map(
   Object.entries(photoManifest).map(([workNumber, relativePath]) => [
     normalizeWorkNumber(workNumber),
-    path.join(studentPhotosDirectory, relativePath)
+    /^https?:\/\//i.test(String(relativePath || ""))
+      ? String(relativePath || "")
+      : path.join(studentPhotosDirectory, relativePath)
   ])
 );
 
@@ -176,6 +178,14 @@ function saveCampusUpload(base64Data, mimeType, originalName = "") {
   return `/campus-upload/${encodeURIComponent(fileName)}`;
 }
 
+function publicStudentPhotoPath(workNumber) {
+  const reference = photosByWorkNumber.get(normalizeWorkNumber(workNumber));
+  if (!reference) return "";
+  return /^https?:\/\//i.test(reference)
+    ? reference
+    : `/student-photo/${encodeURIComponent(normalizeWorkNumber(workNumber))}`;
+}
+
 function publicStudent(student) {
   return {
     id: normalizeWorkNumber(student.workNumber),
@@ -191,9 +201,7 @@ function publicStudent(student) {
     studyForm: student.studyForm,
     educationLevel: student.level,
     status: student.status,
-    photoPath: photosByWorkNumber.has(normalizeWorkNumber(student.workNumber))
-      ? `/student-photo/${encodeURIComponent(normalizeWorkNumber(student.workNumber))}`
-      : ""
+    photoPath: publicStudentPhotoPath(student.workNumber)
   };
 }
 
@@ -566,7 +574,17 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && url.pathname.startsWith("/student-photo/")) {
     const workNumber = normalizeWorkNumber(decodeURIComponent(url.pathname.split("/").pop() || ""));
     const photoPath = photosByWorkNumber.get(workNumber);
-    if (!photoPath || !fs.existsSync(photoPath)) {
+    if (!photoPath) {
+      return sendJson(response, 404, { message: "Tələbə fotosu tapılmadı." });
+    }
+    if (/^https?:\/\//i.test(photoPath)) {
+      response.writeHead(302, {
+        Location: photoPath,
+        "Access-Control-Allow-Origin": "*"
+      });
+      return response.end();
+    }
+    if (!fs.existsSync(photoPath)) {
       return sendJson(response, 404, { message: "Tələbə fotosu tapılmadı." });
     }
     const extension = path.extname(photoPath).toLowerCase();

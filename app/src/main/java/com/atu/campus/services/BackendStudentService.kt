@@ -108,7 +108,11 @@ class BackendStudentService(
             department = optString("department"),
             specialty = optString("specialty"),
             group = optString("group"),
-            photoUrl = if (photoPath.isBlank()) "" else "$baseUrl$photoPath",
+            photoUrl = when {
+                photoPath.isBlank() -> ""
+                photoPath.startsWith("http://") || photoPath.startsWith("https://") -> photoPath
+                else -> "$baseUrl$photoPath"
+            },
             course = optString("course"),
             studyForm = optString("studyForm"),
             educationLevel = optString("educationLevel"),

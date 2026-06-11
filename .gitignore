@@ -17,6 +17,7 @@ backend/.env.*
 *.log
 backend/*.log
 backend/data/campus-uploads/
+backend/data/student-photos-cloudinary-errors.json
 ios/ATUCampus-ios-source.zip
 Statistika.xlsx
 student photos/
