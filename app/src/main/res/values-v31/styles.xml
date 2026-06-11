@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ATUCampus.Launch" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">#4F0623</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/atu_logo</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#F8F8FB</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#4F0623</item>
+        <item name="android:navigationBarColor">#4F0623</item>
+    </style>
+</resources>

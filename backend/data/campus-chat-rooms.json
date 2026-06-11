@@ -1,0 +1,26 @@
+[
+  {
+    "id": "atu-official",
+    "title": "ATU Rəsmi Qrup",
+    "subtitle": "Yalnız administrator paylaşımı",
+    "kind": "OFFICIAL",
+    "readOnly": true,
+    "group": ""
+  },
+  {
+    "id": "group-1324a3",
+    "title": "1324a3 qrupu",
+    "subtitle": "Qrup daxili canlı söhbət",
+    "kind": "GROUP",
+    "readOnly": false,
+    "group": "1324a3"
+  },
+  {
+    "id": "group-it25a2",
+    "title": "İT25A2 qrupu",
+    "subtitle": "Qrup daxili canlı söhbət",
+    "kind": "GROUP",
+    "readOnly": false,
+    "group": "İT25A2"
+  }
+]

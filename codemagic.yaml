@@ -1,0 +1,62 @@
+workflows:
+  ios-signed-ipa:
+    name: ATU Campus iOS Signed IPA
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: atu-campus-appstore
+    environment:
+      xcode: latest
+      vars:
+        BUNDLE_ID: "com.atu.campus.ios"
+        XCODE_PROJECT: "ios/ATUCampus/ATUCampus.xcodeproj"
+        XCODE_SCHEME: "ATUCampus"
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.atu.campus.ios
+    scripts:
+      - name: Generate Xcode project
+        script: |
+          cd "$CM_BUILD_DIR/ios/ATUCampus"
+          brew install xcodegen || true
+          xcodegen generate
+      - name: Apply provisioning profiles
+        script: |
+          xcode-project use-profiles \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT"
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+  ios-unsigned-simulator:
+    name: ATU Campus iOS Unsigned Simulator Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+      vars:
+        XCODE_PROJECT: "ios/ATUCampus/ATUCampus.xcodeproj"
+        XCODE_SCHEME: "ATUCampus"
+    scripts:
+      - name: Generate Xcode project
+        script: |
+          cd "$CM_BUILD_DIR/ios/ATUCampus"
+          brew install xcodegen || true
+          xcodegen generate
+      - name: Build unsigned simulator app
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --simulator
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app

@@ -1,0 +1,15 @@
+{
+  "name": "atu-campus-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ATU Campus MVP backend",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0"
+  }
+}

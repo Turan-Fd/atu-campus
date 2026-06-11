@@ -1,0 +1,155 @@
+[
+  {
+    "id": "1781129061464-5bsxty",
+    "roomId": "group-1324a3",
+    "senderId": "145042",
+    "senderName": "ŞABAN ÖMƏROV",
+    "senderPhotoPath": "/student-photo/145042",
+    "senderRole": "STUDENT",
+    "text": "b",
+    "mediaUrl": "",
+    "mediaType": "",
+    "attachmentName": "",
+    "createdAt": 1781129061464,
+    "editedAt": 0,
+    "reactions": []
+  },
+  {
+    "id": "1781176971137-ufx05s",
+    "roomId": "group-1324a3",
+    "senderId": "145042",
+    "senderName": "ŞABAN ÖMƏROV",
+    "senderPhotoPath": "/student-photo/145042",
+    "senderRole": "STUDENT",
+    "text": "",
+    "mediaUrl": "/campus-upload/campus_1781176971130_5jjikw.m4a",
+    "mediaType": "audio/mp4",
+    "attachmentName": "voice_1781176960892.m4a",
+    "createdAt": 1781176971137,
+    "editedAt": 0,
+    "reactions": []
+  },
+  {
+    "id": "1781177240675-cbpqt9",
+    "roomId": "group-1324a3",
+    "senderId": "140805",
+    "senderName": "Aqşin Salahov",
+    "senderPhotoPath": "/student-photo/140805",
+    "senderRole": "STUDENT",
+    "text": "m",
+    "mediaUrl": "/campus-upload/campus_1781177240669_9th9ap.m4a",
+    "mediaType": "audio/mp4",
+    "attachmentName": "voice_1781177236285.m4a",
+    "createdAt": 1781177240675,
+    "editedAt": 1781177266700,
+    "reactions": [
+      {
+        "emoji": "??",
+        "userId": "145042",
+        "userName": "ŞABAN ÖMƏROV",
+        "photoPath": "/student-photo/145042"
+      },
+      {
+        "emoji": "❤️",
+        "userId": "140805",
+        "userName": "Aqşin Salahov",
+        "photoPath": "/student-photo/140805"
+      }
+    ]
+  },
+  {
+    "id": "1781177920867-6egpl0",
+    "roomId": "group-1324a3",
+    "senderId": "145042",
+    "senderName": "ŞABAN ÖMƏROV",
+    "senderPhotoPath": "/student-photo/145042",
+    "senderRole": "STUDENT",
+    "text": "",
+    "mediaUrl": "/campus-upload/campus_1781177920865_qoz1ul.m4a",
+    "mediaType": "audio/mp4",
+    "attachmentName": "voice_1781177918810.m4a",
+    "createdAt": 1781177920867,
+    "editedAt": 0,
+    "reactions": []
+  },
+  {
+    "id": "1781179475806-kscvqd",
+    "roomId": "group-it25a2",
+    "senderId": "236383",
+    "senderName": "AĞANUR HƏSƏNOV",
+    "senderPhotoPath": "",
+    "senderRole": "STUDENT",
+    "text": "",
+    "mediaUrl": "/campus-upload/campus_1781179475802_ksk459.m4a",
+    "mediaType": "audio/mp4",
+    "attachmentName": "voice_1781179468424.m4a",
+    "createdAt": 1781179475806,
+    "editedAt": 0,
+    "reactions": [
+      {
+        "emoji": "??",
+        "userId": "236383",
+        "userName": "AĞANUR HƏSƏNOV",
+        "photoPath": ""
+      },
+      {
+        "emoji": "??",
+        "userId": "127476",
+        "userName": "Həsən Məmmədov",
+        "photoPath": ""
+      }
+    ]
+  },
+  {
+    "id": "1781205924154-sxlr5x",
+    "roomId": "group-1324a3",
+    "senderId": "140805",
+    "senderName": "Aqşin Salahov",
+    "senderPhotoPath": "/student-photo/140805",
+    "senderRole": "STUDENT",
+    "text": "",
+    "mediaUrl": "/campus-upload/campus_1781205924130_soyxar.jpg",
+    "mediaType": "image/jpeg",
+    "attachmentName": "Screenshot_20260611-020433.jpg",
+    "createdAt": 1781205924154,
+    "editedAt": 0,
+    "reactions": [
+      {
+        "emoji": "🔥",
+        "userId": "145042",
+        "userName": "ŞABAN ÖMƏROV",
+        "photoPath": "/student-photo/145042"
+      }
+    ]
+  },
+  {
+    "id": "1781205930326-9427mk",
+    "roomId": "group-1324a3",
+    "senderId": "140805",
+    "senderName": "Aqşin Salahov",
+    "senderPhotoPath": "/student-photo/140805",
+    "senderRole": "STUDENT",
+    "text": "vay vay",
+    "mediaUrl": "",
+    "mediaType": "",
+    "attachmentName": "",
+    "createdAt": 1781205930327,
+    "editedAt": 0,
+    "reactions": []
+  },
+  {
+    "id": "1781206623817-3tze70",
+    "roomId": "group-1324a3",
+    "senderId": "145042",
+    "senderName": "ŞABAN ÖMƏROV",
+    "senderPhotoPath": "/student-photo/145042",
+    "senderRole": "STUDENT",
+    "text": "",
+    "mediaUrl": "/campus-upload/campus_1781206623768_g5a10f.pdf",
+    "mediaType": "application/pdf",
+    "attachmentName": "Dim a15.pdf",
+    "createdAt": 1781206623817,
+    "editedAt": 0,
+    "reactions": []
+  }
+]

@@ -1,0 +1,24 @@
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+.kotlin/
+*.iml
+*.apk
+*.aab
+node_modules/
+dist/
+tmp/
+secrets/
+app/google-services.json
+backend/.env
+backend/.env.*
+*.log
+backend/*.log
+backend/data/statistika-students.json
+backend/data/student-photos.json
+backend/data/campus-uploads/
+ios/ATUCampus-ios-source.zip
+Statistika.xlsx
+student photos/

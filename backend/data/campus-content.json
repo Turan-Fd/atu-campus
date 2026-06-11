@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1781101865685-bqdglv",
+    "type": "NEWS",
+    "title": "Yeni tətbiq interfeysi",
+    "summary": "Mükəmməl Update mövcuddur",
+    "body": "Əlaaaaamdmmdkkdkkdkdkkdddndnkdkdje enekekken ebejeoeje",
+    "imageUrl": "/campus-upload/campus_1781101865685_7tycva.jpg",
+    "author": "ATU News Admin",
+    "createdAt": 1781101865687
+  },
+  {
+    "id": "1781101654208-5x4fwj",
+    "type": "NEWS",
+    "title": "Şəkilli test xəbər",
+    "summary": "Cihazdan yüklənən şəkil testi",
+    "body": "Bu məzmun şəkilin link yox, fayl kimi backend-ə yazıldığını yoxlayır.",
+    "imageUrl": "/campus-upload/campus_1781101654209_zds9jp.png",
+    "author": "ATU News Admin",
+    "createdAt": 1781101654218
+  },
+  {
+    "id": "1781101531258-yyelu5",
+    "type": "NEWS",
+    "title": "Şəkilli test xəbər",
+    "summary": "Cihazdan yüklənən şəkil testi",
+    "body": "Bu məzmun şəkilin link yox, fayl kimi backend-ə yazıldığını yoxlayır.",
+    "imageUrl": "",
+    "author": "ATU News Admin",
+    "createdAt": 1781101531258
+  },
+  {
+    "id": "1781100741084-nq2c7a",
+    "type": "ANNOUNCEMENT",
+    "title": "Brend bildiriş testi 18:12:21",
+    "summary": "ATU loqolu notification testi",
+    "body": "Bu elan bildiriş ikonunun ATU brendi ilə görünüb-görünmədiyini yoxlamaq üçün yayımlandı.",
+    "imageUrl": "",
+    "author": "ATU News Admin",
+    "createdAt": 1781100741084
+  },
+  {
+    "id": "1781100532589-v7slnn",
+    "type": "ANNOUNCEMENT",
+    "title": "Sınaq elanı 18:08:52",
+    "summary": "Bu elan telefon bildirişini yoxlamaq üçün yayımlandı.",
+    "body": "ATU Campus bildiriş sistemi sınaq rejimindədir. Bu məzmun bu gün avtomatik yayımlandı və tələbə tətbiqində görünməlidir.",
+    "imageUrl": "",
+    "author": "ATU News Admin",
+    "createdAt": 1781100532590
+  },
+  {
+    "id": "1781040572399-sl3oxe",
+    "type": "ANNOUNCEMENT",
+    "title": "ATU Campus bildiriş sistemi aktivdir",
+    "summary": "News Admin tərəfindən yaradılmış ilk sınaq elanı.",
+    "body": "Bu elan yeni admin paneli və tələbə bildiriş axınının işlədiyini yoxlamaq üçün yaradılıb.",
+    "imageUrl": "",
+    "author": "ATU News Admin",
+    "createdAt": 1781040572401
+  }
+]

@@ -1,0 +1,29 @@
+name: ATUCampus
+options:
+  bundleIdPrefix: com.atu
+configs:
+  Debug: debug
+  Release: release
+targets:
+  ATUCampus:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ATUCampus
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.atu.campus.ios
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: ATU Campus
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: Tələbə kartı şəkillərini saxlamaq üçün istifadə olunur.
+        INFOPLIST_KEY_NSCameraUsageDescription: Tələbə vəsiqəsini skan etmək üçün kamera icazəsi tələb olunur.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIInterfaceOrientationMask: UIInterfaceOrientationMaskPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone:
+          - UIInterfaceOrientationPortrait
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0
+        SWIFT_VERSION: 5.9

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#4F0623"
+                android:centerColor="#8A0D3B"
+                android:endColor="#7A003C" />
+        </shape>
+    </item>
+    <item android:gravity="center">
+        <shape android:shape="rectangle">
+            <size android:width="112dp" android:height="112dp" />
+            <corners android:radius="28dp" />
+            <solid android:color="#F8F8FB" />
+        </shape>
+    </item>
+    <item android:gravity="center">
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/atu_logo" />
+    </item>
+</layer-list>
