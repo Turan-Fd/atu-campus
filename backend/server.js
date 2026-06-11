@@ -837,7 +837,11 @@ const server = http.createServer(async (request, response) => {
           mediaType: imageMimeType
         });
       });
-    return sendJson(response, 201, { success: true, message });
+    return sendJson(response, 201, {
+      success: true,
+      message: "Mesaj göndərildi.",
+      item: message
+    });
   }
 
   if (request.method === "POST" && url.pathname === "/chat/reaction") {
@@ -898,7 +902,11 @@ const server = http.createServer(async (request, response) => {
       messages[index].text = text;
       messages[index].editedAt = Date.now();
       writeChatMessages(messages);
-      return sendJson(response, 200, { success: true, message: messages[index] });
+      return sendJson(response, 200, {
+        success: true,
+        message: "Mesaj yeniləndi.",
+        item: messages[index]
+      });
     }
     return sendJson(response, 400, { success: false, message: "Dəstək olmayan əməliyyat." });
   }

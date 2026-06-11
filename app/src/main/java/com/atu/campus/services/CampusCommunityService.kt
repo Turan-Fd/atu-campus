@@ -235,10 +235,8 @@ class CampusCommunityService(
             val response = requestJson(baseUrl, "POST", path, payload, token) ?: continue
             return CommunityActionResult(
                 success = response.optBoolean("success", true),
-                message = response.optString(
-                    "message",
-                    if (response.optBoolean("success", true)) successFallback else errorFallback
-                )
+                message = response.opt("message")?.takeIf { it is String } as? String
+                    ?: if (response.optBoolean("success", true)) successFallback else errorFallback
             )
         }
         return CommunityActionResult(false, "Backend ilə əlaqə qurulmadı.")
