@@ -26,10 +26,12 @@ const ADMIN_PASSWORD = process.env.ATU_NEWS_ADMIN_PASSWORD || "ATU@1970";
 const FIREBASE_SERVICE_ACCOUNT_PATH = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "";
 
-const students = JSON.parse(fs.readFileSync(statisticsStudentsPath, "utf8"));
 const loginStudents = fs.existsSync(legacyStudentsPath)
   ? JSON.parse(fs.readFileSync(legacyStudentsPath, "utf8"))
   : [];
+const students = fs.existsSync(statisticsStudentsPath)
+  ? JSON.parse(fs.readFileSync(statisticsStudentsPath, "utf8"))
+  : loginStudents;
 const studentPhotosDirectory =
   process.env.STUDENT_PHOTOS_DIR || path.join(os.homedir(), "Documents", "student photos");
 
