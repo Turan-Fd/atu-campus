@@ -92,8 +92,8 @@ class CampusCommunityService(
                             group = item.optString("group"),
                             lastMessagePreview = lastMessage?.optString("text").orEmpty().ifBlank {
                                 when (item.optString("kind")) {
-                                    "OFFICIAL" -> "Rəsmi universitet elanları burada görünəcək"
-                                    else -> "Söhbəti başlat"
+                                    "OFFICIAL" -> "RÉsmi universitet elanlarÄ± burada gÃ¶rÃ¼nÉcÉk"
+                                    else -> "SÃ¶hbÉti baÅlat"
                                 }
                             },
                             lastMessageTime = lastMessage?.optLong("createdAt") ?: 0L
@@ -168,7 +168,7 @@ class CampusCommunityService(
             .put("imageName", mediaName)
             .put("imageMimeType", mediaMimeType)
             .put("imageBase64", mediaBase64)
-        postAction("/chat/message", payload, adminToken, "Mesaj g?nd?rildi.", "Mesaj g?nd?rilm?di.")
+        postAction("/chat/message", payload, adminToken, "Mesaj gÃ¶ndÉrildi.", "Mesaj gÃ¶ndÉrilmÉdi.")
     }
 
 
@@ -178,7 +178,7 @@ class CampusCommunityService(
                 .put("messageId", messageId)
                 .put("studentId", studentId)
                 .put("emoji", emoji)
-            postAction("/chat/reaction", payload, "", "Reaksiya yeniləndi.", "Reaksiya yenilənmədi.")
+            postAction("/chat/reaction", payload, "", "Reaksiya yenilÉndi.", "Reaksiya yenilÉnmÉdi.")
         }
 
     suspend fun updateMessage(
@@ -193,7 +193,7 @@ class CampusCommunityService(
             .put("studentId", studentId)
             .put("action", action)
             .put("text", text)
-        postAction("/chat/message-action", payload, adminToken, "Mesaj yeniləndi.", "Mesaj yenilənmədi.")
+        postAction("/chat/message-action", payload, adminToken, "Mesaj yenilÉndi.", "Mesaj yenilÉnmÉdi.")
     }
 
     suspend fun sendDirectNotification(
@@ -216,8 +216,8 @@ class CampusCommunityService(
             "/admin/direct-notification",
             payload,
             token,
-            "Bildiriş göndərildi.",
-            "Bildiriş göndərilmədi."
+            "BildiriÅ gÃ¶ndÉrildi.",
+            "BildiriÅ gÃ¶ndÉrilmÉdi."
         )
     }
 
@@ -239,7 +239,7 @@ class CampusCommunityService(
                     ?: if (response.optBoolean("success", true)) successFallback else errorFallback
             )
         }
-        return CommunityActionResult(false, "Backend ilə əlaqə qurulmadı.")
+        return CommunityActionResult(false, "Backend ilÉ ÉlaqÉ qurulmadÄ±.")
     }
 
     private fun requestJson(

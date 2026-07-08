@@ -20,11 +20,15 @@ const campusNotificationsPath = path.join(dataDirectory, "campus-notifications.j
 const campusRoomsPath = path.join(dataDirectory, "campus-chat-rooms.json");
 const campusMessagesPath = path.join(dataDirectory, "campus-chat-messages.json");
 const campusDeviceTokensPath = path.join(dataDirectory, "campus-device-tokens.json");
+const faceAuthSessionsPath = path.join(dataDirectory, "face-auth-sessions.json");
+const faceAuthAuditPath = path.join(dataDirectory, "face-auth-audit.json");
 const NEWS_ADMIN_ACCESS_CODE = process.env.ATU_NEWS_ADMIN_CODE || "1970103";
 const SMS_ADMIN_ACCESS_CODE = process.env.ATU_SMS_ADMIN_CODE || "899913";
 const ADMIN_PASSWORD = process.env.ATU_NEWS_ADMIN_PASSWORD || "ATU@1970";
 const FIREBASE_SERVICE_ACCOUNT_PATH = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "";
+const FACE_AUTH_SESSION_EXPIRY_MS = Number(process.env.FACE_AUTH_SESSION_EXPIRY_MS || 180000);
+const FACE_VERIFICATION_SERVICE_URL = String(process.env.FACE_VERIFICATION_SERVICE_URL || "").trim();
 
 const loginStudents = fs.existsSync(legacyStudentsPath)
   ? JSON.parse(fs.readFileSync(legacyStudentsPath, "utf8"))
@@ -141,6 +145,24 @@ function writeDeviceTokens(items) {
   writeJsonFile(campusDeviceTokensPath, items);
 }
 
+function readFaceAuthSessions() {
+  return readJsonFile(faceAuthSessionsPath, []);
+}
+
+function writeFaceAuthSessions(items) {
+  writeJsonFile(faceAuthSessionsPath, items);
+}
+
+function readFaceAuthAudit() {
+  return readJsonFile(faceAuthAuditPath, []);
+}
+
+function appendFaceAuthAudit(entry) {
+  const items = readFaceAuthAudit();
+  items.unshift(entry);
+  writeJsonFile(faceAuthAuditPath, items.slice(0, 5000));
+}
+
 function readChatRooms() {
   return readJsonFile(campusRoomsPath, [officialRoom()]);
 }
@@ -192,6 +214,8 @@ function publicStudent(student) {
     name: student.name,
     surname: student.surname,
     fatherName: student.fatherName,
+    fin: student.fin || "",
+    identityCard: student.identityCard || "",
     username: normalizeWorkNumber(student.workNumber),
     group: student.group,
     faculty: student.faculty,
@@ -203,6 +227,145 @@ function publicStudent(student) {
     status: student.status,
     photoPath: publicStudentPhotoPath(student.workNumber)
   };
+}
+
+function createFaceAuthSession(student) {
+  const now = Date.now();
+  const session = {
+    id: `face_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    studentId: normalizeWorkNumber(student.workNumber),
+    createdAt: now,
+    expiresAt: now + FACE_AUTH_SESSION_EXPIRY_MS,
+    attempts: 0,
+    status: "PENDING",
+    referenceImageUrl: publicStudentPhotoPath(student.workNumber),
+    challenge: {
+      type: "blink_and_turn_left",
+      expiresInSeconds: Math.floor(FACE_AUTH_SESSION_EXPIRY_MS / 1000)
+    }
+  };
+  const sessions = readFaceAuthSessions().filter(item => item.expiresAt > now && item.status === "PENDING");
+  sessions.unshift(session);
+  writeFaceAuthSessions(sessions.slice(0, 2000));
+  return session;
+}
+
+function findFaceAuthSession(sessionId) {
+  const now = Date.now();
+  const sessions = readFaceAuthSessions();
+  const session = sessions.find(item => item.id === sessionId) || null;
+  if (!session) return null;
+  if (session.expiresAt <= now) return null;
+  return session;
+}
+
+function updateFaceAuthSession(sessionId, updater) {
+  const sessions = readFaceAuthSessions();
+  const index = sessions.findIndex(item => item.id === sessionId);
+  if (index < 0) return null;
+  const updated = updater({ ...sessions[index] });
+  sessions[index] = updated;
+  writeFaceAuthSessions(sessions);
+  return updated;
+}
+
+function stripBase64Prefix(value) {
+  const stringValue = String(value || "").trim();
+  const match = stringValue.match(/^data:.*?;base64,(.*)$/i);
+  return match ? match[1] : stringValue;
+}
+
+function contentTypeFromExtension(filePath) {
+  const extension = path.extname(String(filePath || "")).toLowerCase();
+  if (extension === ".png") return "image/png";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".gif") return "image/gif";
+  return "image/jpeg";
+}
+
+async function readReferenceImagePayload(studentId) {
+  const reference = photosByWorkNumber.get(normalizeWorkNumber(studentId));
+  if (!reference) return null;
+
+  if (/^https?:\/\//i.test(reference)) {
+    const remoteResponse = await fetch(reference);
+    if (!remoteResponse.ok) {
+      throw new Error(`Reference photo fetch failed with status ${remoteResponse.status}`);
+    }
+    const contentType = remoteResponse.headers.get("content-type") || "image/jpeg";
+    const arrayBuffer = await remoteResponse.arrayBuffer();
+    return {
+      base64: Buffer.from(arrayBuffer).toString("base64"),
+      mimeType: contentType
+    };
+  }
+
+  if (!fs.existsSync(reference)) {
+    return null;
+  }
+
+  return {
+    base64: fs.readFileSync(reference).toString("base64"),
+    mimeType: contentTypeFromExtension(reference)
+  };
+}
+
+async function runFaceVerificationInference({ session, captures, challengeMeta }) {
+  const referenceImage = await readReferenceImagePayload(session.studentId);
+  if (!referenceImage) {
+    return {
+      available: false,
+      verified: false,
+      reason: "reference_image_not_found"
+    };
+  }
+
+  if (!FACE_VERIFICATION_SERVICE_URL) {
+    return {
+      available: false,
+      verified: false,
+      reason: "face_verification_service_not_configured"
+    };
+  }
+
+  const response = await fetch(`${FACE_VERIFICATION_SERVICE_URL.replace(/\/$/, "")}/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      referenceImageBase64: referenceImage.base64,
+      referenceImageMimeType: referenceImage.mimeType,
+      captureImages: captures.map(stripBase64Prefix),
+      challengeMeta
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Face verification service failed with status ${response.status}`);
+  }
+  return {
+    available: true,
+    ...data
+  };
+}
+
+function faceFailureMessage(reason) {
+  switch (String(reason || "").toUpperCase()) {
+    case "FACE_MISMATCH":
+      return "Üz uyğunluğu təsdiqlənmədi. Yalnız hesab sahibinin üzü ilə davam edin.";
+    case "CHALLENGE_INCOMPLETE":
+      return "Canlılıq addımları tamamlanmadı. Göz qırpıb başınızı sola çevirərək yenidən yoxlayın.";
+    case "SPOOF_SUSPECTED":
+      return "Canlı üz tələb olunur. Foto, ekran və ya başqa cihazla giriş qəbul edilmir.";
+    case "LOW_IMAGE_QUALITY":
+      return "Kamera görüntüsü kifayət qədər aydın deyil. İşıqlı mühitdə üzünüzü sabit saxlayın.";
+    case "LIVENESS_FAILED":
+      return "Canlılıq təsdiqlənmədi. Kamera qarşısında birbaşa baxaraq yenidən cəhd edin.";
+    default:
+      return "Üz doğrulaması uğursuz oldu.";
+  }
 }
 
 function exactMatch(payload) {
@@ -410,7 +573,8 @@ function ensureGroupRoom(groupName) {
 
 function getStudentById(studentId) {
   const matches = studentsByWorkNumber.get(normalizeWorkNumber(studentId)) || [];
-  return matches[0] || null;
+  if (matches.length !== 1) return null;
+  return matches[0];
 }
 
 function roomsForStudent(studentId) {
@@ -927,6 +1091,208 @@ const server = http.createServer(async (request, response) => {
       });
     }
     return sendJson(response, 400, { success: false, message: "Dəstək olmayan əməliyyat." });
+  }
+
+  if (request.method === "POST" && url.pathname === "/auth/face/start") {
+    const payload = await readBody(request);
+    const studentNumber = normalizeWorkNumber(payload.studentNumber);
+    if (studentNumber === "0") {
+      return sendJson(response, 400, {
+        success: false,
+        message: "Tələbə nömrəsi tələb olunur."
+      });
+    }
+
+    const matches = studentsByWorkNumber.get(studentNumber) || [];
+    if (matches.length === 0) {
+      appendFaceAuthAudit({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        event: "FACE_AUTH_START_NOT_FOUND",
+        studentId: studentNumber,
+        createdAt: Date.now()
+      });
+      return sendJson(response, 404, {
+        success: false,
+        code: "NOT_FOUND",
+        message: "Bu nömrə ilə tələbə tapılmadı."
+      });
+    }
+
+    if (matches.length !== 1) {
+      appendFaceAuthAudit({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        event: "FACE_AUTH_START_AMBIGUOUS",
+        studentId: studentNumber,
+        createdAt: Date.now()
+      });
+      return sendJson(response, 409, {
+        success: false,
+        code: "AMBIGUOUS",
+        message: "Bu nömrə ilə bir neçə qeyd tapıldı."
+      });
+    }
+
+    const student = matches[0];
+    const session = createFaceAuthSession(student);
+    appendFaceAuthAudit({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      event: "FACE_AUTH_START_CREATED",
+      sessionId: session.id,
+      studentId: session.studentId,
+      createdAt: Date.now()
+    });
+
+    return sendJson(response, 200, {
+      success: true,
+      sessionId: session.id,
+      challenge: session.challenge,
+      studentPreview: {
+        fullName: `${student.name || ""} ${student.surname || ""}`.trim(),
+        group: student.group || ""
+      }
+    });
+  }
+
+  if (request.method === "POST" && url.pathname === "/auth/face/complete") {
+    const payload = await readBody(request);
+    const sessionId = String(payload.sessionId || "").trim();
+    const captures = Array.isArray(payload.captures) ? payload.captures.filter(Boolean) : [];
+    const challengeMeta = payload.challengeMeta && typeof payload.challengeMeta === "object"
+      ? payload.challengeMeta
+      : {};
+
+    if (!sessionId) {
+      return sendJson(response, 400, {
+        success: false,
+        message: "sessionId tələb olunur."
+      });
+    }
+
+    const session = findFaceAuthSession(sessionId);
+    if (!session) {
+      return sendJson(response, 404, {
+        success: false,
+        code: "SESSION_NOT_FOUND",
+        message: "Üz yoxlama sessiyası tapılmadı və ya vaxtı bitib."
+      });
+    }
+
+    const updatedSession = updateFaceAuthSession(sessionId, current => ({
+      ...current,
+      attempts: Number(current.attempts || 0) + 1,
+      lastAttemptAt: Date.now()
+    }));
+    const student = getStudentById(session.studentId);
+
+    try {
+      const inference = await runFaceVerificationInference({
+        session,
+        captures,
+        challengeMeta
+      });
+
+      const verified = Boolean(inference.available && inference.verified);
+      updateFaceAuthSession(sessionId, current => ({
+        ...current,
+        status: verified ? "VERIFIED" : "FAILED",
+        completedAt: Date.now(),
+        lastResult: {
+          verified,
+          faceSimilarity: Number(inference.faceSimilarity || 0),
+          livenessScore: Number(inference.livenessScore || 0),
+          antiSpoofLabel: String(inference.antiSpoofLabel || ""),
+          confidenceBand: String(inference.confidenceBand || ""),
+          captureQualityBand: String(inference.captureQualityBand || ""),
+          failureReason: String(inference.failureReason || "")
+        }
+      }));
+
+      appendFaceAuthAudit({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        event: verified ? "FACE_AUTH_COMPLETE_VERIFIED" : "FACE_AUTH_COMPLETE_FAILED",
+        sessionId,
+        studentId: session.studentId,
+        capturesCount: captures.length,
+        challengeMeta,
+        inference,
+        createdAt: Date.now()
+      });
+
+      if (!inference.available) {
+        return sendJson(response, 503, {
+          success: false,
+          verified: false,
+          code: "INFERENCE_UNAVAILABLE",
+          message: "Face verification servisi hazır deyil.",
+          reason: inference.reason || "unknown",
+          session: {
+            id: sessionId,
+            attempts: updatedSession?.attempts || 1,
+            expiresAt: session.expiresAt
+          }
+        });
+      }
+
+      if (!verified) {
+        const failureReason = String(inference.failureReason || "VERIFICATION_FAILED");
+        const recommendedAction = String(inference.recommendedAction || "");
+        return sendJson(response, 401, {
+          success: false,
+          verified: false,
+          code: "FACE_VERIFICATION_FAILED",
+          message: faceFailureMessage(failureReason),
+          failureReason,
+          recommendedAction,
+          matchScore: Number(inference.faceSimilarity || 0),
+          livenessScore: Number(inference.livenessScore || 0),
+          antiSpoofLabel: String(inference.antiSpoofLabel || "unknown"),
+          confidenceBand: String(inference.confidenceBand || "low"),
+          captureQualityBand: String(inference.captureQualityBand || "poor"),
+          retryable: Boolean(inference.retryable),
+          debug: inference.debug || {},
+          session: {
+            id: sessionId,
+            attempts: updatedSession?.attempts || 1,
+            expiresAt: session.expiresAt
+          }
+        });
+      }
+
+      return sendJson(response, 200, {
+        success: true,
+        verified: true,
+        message: "Üz doğrulaması uğurla tamamlandı.",
+        matchScore: Number(inference.faceSimilarity || 0),
+        livenessScore: Number(inference.livenessScore || 0),
+        antiSpoofLabel: String(inference.antiSpoofLabel || "live"),
+        confidenceBand: String(inference.confidenceBand || "high"),
+        captureQualityBand: String(inference.captureQualityBand || "good"),
+        retryable: false,
+        student: student ? publicStudent(student) : null,
+        session: {
+          id: sessionId,
+          attempts: updatedSession?.attempts || 1,
+          expiresAt: session.expiresAt
+        }
+      });
+    } catch (error) {
+      appendFaceAuthAudit({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        event: "FACE_AUTH_COMPLETE_ERROR",
+        sessionId,
+        studentId: session.studentId,
+        capturesCount: captures.length,
+        challengeMeta,
+        error: String(error?.message || error),
+        createdAt: Date.now()
+      });
+      return sendJson(response, 502, {
+        success: false,
+        verified: false,
+        code: "FACE_VERIFICATION_ERROR",
+        message: "Üz doğrulaması servisində xəta baş verdi."
+      });
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/verify-card") {

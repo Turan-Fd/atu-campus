@@ -1,29 +1,30 @@
 package com.atu.campus.ui.theme
 
-import androidx.compose.ui.graphics.Color
+// Backward-compatible color aliases while screens migrate to the new token files.
+internal object ColorAliases
 
-val AtuPrimary = Color(0xFF8A0D3B)
-val AtuDark = Color(0xFF6F0A31)
-val AtuWine = Color(0xFF3A061A)
-val AtuMagenta = Color(0xFFC2185B)
-val AtuPlum = Color(0xFF9B3DFF)
-val AtuNavy = Color(0xFF0E1320)
+val AtuPrimary = AtuColors.Primary
+val AtuDark = AtuColors.PrimaryDark
+val AtuWine = AtuColors.DeepWine
+val AtuMagenta = AtuColors.Primary.copy(alpha = 0.82f)
+val AtuPlum = AtuColors.SoftPurple
+val AtuNavy = AtuColors.DeepWine
 
-val AtuTint = Color(0xFFFFEEF5)
-val AtuWhite = Color(0xFFFFFFFF)
-val AtuBackground = Color(0xFFF5F6FA)
-val AtuSurfaceSoft = Color(0xFFF1F3F8)
-val AtuTextPrimary = Color(0xFF111827)
-val AtuTextSecondary = Color(0xFF6B7280)
-val AtuBorder = Color(0xFFE4E7EF)
+val AtuTint = AtuColors.SoftPrimary
+val AtuWhite = AtuColors.Surface
+val AtuBackground = AtuColors.Background
+val AtuSurfaceSoft = AtuColors.SoftSurface
+val AtuTextPrimary = AtuColors.TextPrimary
+val AtuTextSecondary = AtuColors.TextSecondary
+val AtuBorder = AtuColors.Border
 
-val AtuDarkBackground = Color(0xFF090A0F)
-val AtuDarkSurface = Color(0xFF13111A)
-val AtuDarkElevated = Color(0xFF1A1622)
-val AtuDarkBorder = Color(0xFF302638)
-val AtuDarkText = Color(0xFFF5F7FB)
-val AtuDarkMuted = Color(0xFFB0B4C0)
+val AtuDarkBackground = AtuColors.DarkBackground
+val AtuDarkSurface = AtuColors.DarkSurface
+val AtuDarkElevated = AtuColors.DarkSoftSurface
+val AtuDarkBorder = AtuColors.DarkBorder
+val AtuDarkText = AtuColors.DarkText
+val AtuDarkMuted = AtuColors.DarkTextSecondary
 
-val AtuSuccess = Color(0xFF16A34A)
-val AtuWarning = Color(0xFFF59E0B)
-val AtuDanger = Color(0xFFDC2626)
+val AtuSuccess = AtuColors.Success
+val AtuWarning = AtuColors.Warning
+val AtuDanger = AtuColors.Error

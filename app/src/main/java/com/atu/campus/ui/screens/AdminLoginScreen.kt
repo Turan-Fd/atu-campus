@@ -1,17 +1,20 @@
 package com.atu.campus.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AdminPanelSettings
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,11 +26,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.atu.campus.ui.components.AtuHeroCard
 import com.atu.campus.ui.components.AtuInlineNote
+import com.atu.campus.ui.components.AtuInputField
+import com.atu.campus.ui.components.AtuLogoHeader
 import com.atu.campus.ui.components.AtuPrimaryButton
 import com.atu.campus.ui.components.AtuScreen
-import com.atu.campus.ui.components.PremiumCard
+import com.atu.campus.ui.components.AtuSoftCard
 
 @Composable
 fun AdminLoginScreen(
@@ -42,51 +46,64 @@ fun AdminLoginScreen(
     var password by remember { mutableStateOf("") }
 
     AtuScreen(verticalArrangement = Arrangement.spacedBy(20.dp)) { palette ->
-        IconButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = "Geri", tint = palette.text)
-        }
-        AtuHeroCard(
-            title = title,
-            subtitle = subtitle,
-            minHeight = 172.dp
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
-            Icon(
-                Icons.Outlined.AdminPanelSettings,
-                contentDescription = null,
-                tint = palette.primary,
-                modifier = Modifier.align(Alignment.TopEnd)
-            )
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Geri", tint = palette.text)
+            }
+            AtuLogoHeader()
         }
-        Text(
-            text = "Admin şifrəsi",
-            color = palette.text,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Black
-        )
-        PremiumCard(radius = 26.dp) {
-            OutlinedTextField(
+
+        AtuSoftCard(radius = 30.dp) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(52.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Outlined.AdminPanelSettings, contentDescription = null, tint = palette.primary, modifier = Modifier.size(30.dp))
+                }
+                Text(title, color = palette.text, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            }
+            Text(subtitle, color = palette.textSecondary, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        AtuSoftCard(radius = 26.dp) {
+            Text(
+                text = "Secure admin access",
+                color = palette.text,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            AtuInputField(
                 value = password,
                 onValueChange = { password = it.take(64) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Şifrəni daxil edin") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = palette.primary,
-                    unfocusedBorderColor = palette.border,
-                    focusedContainerColor = palette.surfaceSoft,
-                    unfocusedContainerColor = palette.surfaceSoft,
-                    cursorColor = palette.primary
-                )
+                label = "Şifrə",
+                placeholder = "Admin şifrəsini daxil edin",
+                leadingIcon = Icons.Outlined.Lock,
+                trailingIcon = Icons.Outlined.Security,
+                visualTransformation = PasswordVisualTransformation()
+            )
+            AtuInlineNote(
+                text = if (message.isNotBlank()) {
+                    message
+                } else {
+                    "Bu giriş yalnız səlahiyyətli inzibatçılar üçündür. Etibarlı giriş məlumatları heç vaxt ekranda göstərilmir."
+                }
             )
         }
-        if (message.isNotBlank()) AtuInlineNote(text = message)
+
         Spacer(Modifier.weight(1f))
         AtuPrimaryButton(
             text = ctaText,
             enabled = password.length >= 6,
             loading = loading,
+            showArrow = true,
             onClick = { onLogin(password) }
         )
     }

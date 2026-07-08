@@ -81,9 +81,9 @@ fun NewsAdminScreen(
             val encoded = AdminImageEncoder.encode(context, uri)
             if (encoded != null) {
                 selectedImage = encoded
-                imageMessage = "Şəkil hazırdır və cihazdan yüklənəcək."
+                imageMessage = "kil hazrdr v cihazdan yklnck."
             } else {
-                imageMessage = "Şəkil oxunmadı. Başqa şəkil seçin."
+                imageMessage = "kil oxunmad. Baqa kil sein."
             }
         }
     }
@@ -155,7 +155,7 @@ fun NewsAdminScreen(
             ) {
                 Icon(Icons.Outlined.Collections, contentDescription = null, tint = palette.primary)
                 Text(
-                    text = if (selectedImage == null) "Cihazdan şəkil seç" else "Şəkli dəyiş",
+                    text = if (selectedImage == null) "Cihazdan ?kil se?" else "?kli d?yi?",
                     modifier = Modifier.padding(start = 8.dp),
                     color = palette.text,
                     fontWeight = FontWeight.SemiBold
@@ -164,7 +164,7 @@ fun NewsAdminScreen(
             if (selectedImage != null) {
                 AsyncImage(
                     model = selectedImage?.uri,
-                    contentDescription = "Seçilmiş şəkil",
+                    contentDescription = "Se?ilmi? ?kil",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
@@ -191,7 +191,7 @@ fun NewsAdminScreen(
         )
         PremiumCard(radius = 26.dp) {
             Text(
-                text = "ATU Rəsmi Qrupa paylaş",
+                text = "ATU R?smi Qrupa payla?",
                 color = palette.text,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black
@@ -204,14 +204,14 @@ fun NewsAdminScreen(
             ) {
                 Icon(Icons.Outlined.Collections, contentDescription = null, tint = palette.primary)
                 Text(
-                    text = if (selectedOfficialAttachment == null) "Fayl, şəkil, səs və ya video seç" else selectedOfficialAttachment?.fileName.orEmpty(),
+                    text = if (selectedOfficialAttachment == null) "Fayl, ?kil, s?s v? ya video se?" else selectedOfficialAttachment?.fileName.orEmpty(),
                     modifier = Modifier.padding(start = 8.dp),
                     color = palette.text,
                     fontWeight = FontWeight.SemiBold
                 )
             }
             AtuPrimaryButton(
-                text = "Rəsmi qrupa göndər",
+                text = "R?smi qrupa g?nd?r",
                 enabled = officialMessage.isNotBlank() || selectedOfficialAttachment != null,
                 loading = false,
                 onClick = {

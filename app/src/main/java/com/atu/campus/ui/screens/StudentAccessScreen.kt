@@ -13,18 +13,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,17 +36,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.atu.campus.R
-import com.atu.campus.ui.components.AtuHeroCard
 import com.atu.campus.ui.components.AtuInlineNote
+import com.atu.campus.ui.components.AtuInputField
+import com.atu.campus.ui.components.AtuLogoHeader
 import com.atu.campus.ui.components.AtuPrimaryButton
 import com.atu.campus.ui.components.AtuScreen
-import com.atu.campus.ui.components.PremiumCard
-import com.atu.campus.ui.theme.AtuPrimary
+import com.atu.campus.ui.components.AtuSoftCard
+import com.atu.campus.ui.theme.AtuColors
 
 @Composable
 fun StudentAccessScreen(
@@ -59,121 +57,152 @@ fun StudentAccessScreen(
     var code by remember { mutableStateOf("") }
     var showGuide by remember { mutableStateOf(false) }
 
-    AtuScreen(verticalArrangement = Arrangement.spacedBy(20.dp)) { palette ->
-        Spacer(Modifier.height(8.dp))
-        AtuHeroCard(
-            title = "ATU Campus-a xoş gəldiniz",
-            subtitle = "Tələbə hesabınızı təhlükəsiz şəkildə aktivləşdirin.",
-            minHeight = 178.dp
-        )
+    AtuScreen(verticalArrangement = Arrangement.spacedBy(18.dp)) { palette ->
+        AtuLogoHeader(modifier = Modifier.padding(top = 8.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(182.dp)
+                .clip(RoundedCornerShape(30.dp))
+        ) {
+            Image(
+                painter = painterResource(R.drawable.atu_logo),
+                contentDescription = "ATU",
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 26.dp)
+                    .size(112.dp),
+                alpha = 0.92f
+            )
+            Surface(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(30.dp)),
+                color = AtuColors.Surface.copy(alpha = 0.42f)
+            ) {}
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Xoş gəlmisiniz!",
+                    color = palette.text,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Hesabınıza daxil olaraq universitet həyatınızı asanlaşdırın.",
+                    color = palette.textSecondary,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+
+        AtuSoftCard(radius = 26.dp) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Vəsiqə nömrəsi",
+                    text = "Tələbə məlumatı",
                     color = palette.text,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
                 IconButton(onClick = { showGuide = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = "Təlimat",
-                        tint = palette.primary
-                    )
+                    Icon(Icons.Outlined.Info, contentDescription = "Təlimat", tint = palette.primary)
                 }
             }
-            Text(
-                text = "Kartınızda olan iş nömrəsini daxil edin.",
-                color = palette.muted,
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
 
-        PremiumCard(radius = 26.dp) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+            AtuInputField(
+                value = code,
+                onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                label = "Tələbə vəsiqəsi nömrəsi",
+                placeholder = "Məs: 193253",
+                leadingIcon = Icons.Outlined.Badge
+            )
+
+            AtuInlineNote(
+                icon = Icons.Outlined.Lock,
+                text = "Bu girişdə parol tələb olunmur. Növbəti addımda üz doğrulaması ilə davam edəcəksiniz."
+            )
+
+            AtuPrimaryButton(
+                text = "Daxil ol",
+                enabled = code.length == 6,
+                loading = loading,
+                showArrow = true,
+                onClick = { onContinue(code) }
+            )
+
+            Text(
+                text = "və ya",
+                color = palette.textMuted,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = palette.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
             ) {
-                Surface(
-                    modifier = Modifier.size(46.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = palette.primary.copy(alpha = 0.08f)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Outlined.Badge,
-                            contentDescription = null,
-                            tint = AtuPrimary,
-                            modifier = Modifier.size(24.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .padding(2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = palette.primary)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Biometrik giriş",
+                            color = palette.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "Üz ilə təhlükəsiz təsdiq",
+                            color = palette.textSecondary,
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "Tələbə vəsiqəsi №",
-                        color = palette.text,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Vəsiqənin ön üzündəki nömrəni daxil edin",
-                        color = palette.muted,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
             }
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = code,
-                onValueChange = { code = it.filter(Char::isDigit).take(7) },
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center
-                ),
-                placeholder = {
-                    Text(
-                        "0000000",
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = palette.primary,
-                    unfocusedBorderColor = palette.border,
-                    focusedContainerColor = palette.surfaceSoft,
-                    unfocusedContainerColor = palette.surfaceSoft,
-                    cursorColor = palette.primary
-                )
+        }
+
+        AnimatedContent(targetState = message, label = "accessMessage") { current ->
+            AtuInlineNote(
+                icon = Icons.Outlined.Lock,
+                text = if (current.isNotBlank()) {
+                    current
+                } else {
+                    "Mövcud tələbə məlumatı saxlanılır və növbəti addımda üz doğrulaması ilə yoxlanılır."
+                }
             )
         }
 
-        AnimatedContent(targetState = message, label = "accessMessage") {
-            if (it.isNotBlank()) {
-                AtuInlineNote(icon = Icons.Outlined.Lock, text = it)
-            } else {
-                AtuInlineNote(
-                    icon = Icons.Outlined.Lock,
-                    text = "Məlumatlarınız yalnız rəsmi tələbə datasında yoxlanılır."
-                )
-            }
-        }
-
-        Spacer(Modifier.weight(1f))
-        AtuPrimaryButton(
-            text = "Davam et",
-            enabled = code.length in 5..7,
-            loading = loading,
-            onClick = { onContinue(code) }
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = "Probleminiz var? Dəstək mərkəzi ilə əlaqə saxlayın",
+            color = palette.textMuted,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 
@@ -196,42 +225,22 @@ fun StudentAccessScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Təlimat",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Vəsiqə nömrəsinin yerini bu nümunədən baxaraq tapa bilərsiniz.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text("Təlimat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         IconButton(onClick = { showGuide = false }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = "Bağla",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
+                            Icon(Icons.Outlined.Close, contentDescription = "Bağla")
                         }
                     }
-                    Box(
+                    Image(
+                        painter = painterResource(R.drawable.student_card_guide),
+                        contentDescription = "Tələbə vəsiqəsi nümunəsi",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(22.dp))
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.student_card_guide),
-                            contentDescription = "Tələbə vəsiqəsi nümunəsi",
-                            modifier = Modifier.fillMaxWidth(),
-                            contentScale = ContentScale.FillWidth
-                        )
-                    }
+                            .clip(RoundedCornerShape(22.dp)),
+                        contentScale = ContentScale.FillWidth
+                    )
                     AtuInlineNote(
                         icon = Icons.Outlined.Info,
-                        text = "Nömrəni vəsiqənin ön üzündəki “Tələbə vəsiqəsi №” hissəsindən daxil edin."
+                        text = "Nömrəni vəsiqənin ön hissəsindəki “Tələbə vəsiqəsi №” sahəsindən daxil edin."
                     )
                 }
             }

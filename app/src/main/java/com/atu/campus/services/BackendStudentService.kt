@@ -1,7 +1,9 @@
 package com.atu.campus.services
 
 import android.content.Context
+import android.util.Base64
 import com.atu.campus.data.StudentProfile
+import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -22,6 +24,30 @@ data class StudentLookupResult(
     val profile: StudentProfile? = null,
     val cardNumber: String? = null,
     val message: String = ""
+)
+
+data class FaceAuthStartResult(
+    val success: Boolean,
+    val sessionId: String = "",
+    val challengeType: String = "",
+    val expiresInSeconds: Int = 0,
+    val studentPreviewName: String = "",
+    val studentPreviewGroup: String = "",
+    val message: String = ""
+)
+
+data class FaceAuthCompleteResult(
+    val success: Boolean,
+    val verified: Boolean,
+    val profile: StudentProfile? = null,
+    val matchScore: Double = 0.0,
+    val livenessScore: Double = 0.0,
+    val message: String = "",
+    val failureReason: String = "",
+    val recommendedAction: String = "",
+    val confidenceBand: String = "",
+    val captureQualityBand: String = "",
+    val retryable: Boolean = true
 )
 
 class BackendStudentService(
@@ -97,6 +123,97 @@ class BackendStudentService(
         return lookupByCardNumber(profile.id).profile ?: profile
     }
 
+    suspend fun startFaceAuth(cardNumber: String): FaceAuthStartResult =
+        withContext(Dispatchers.IO) {
+            val normalized = cardNumber.filter(Char::isDigit).trimStart('0').ifBlank { "0" }
+            val payload = JSONObject().put("studentNumber", normalized)
+
+            for (baseUrl in backendConfigStore.resolveBaseUrls()) {
+                val response = postJson(baseUrl, "/auth/face/start", payload) ?: continue
+                if (response.optBoolean("success", false)) {
+                    val challenge = response.optJSONObject("challenge")
+                    val preview = response.optJSONObject("studentPreview")
+                    return@withContext FaceAuthStartResult(
+                        success = true,
+                        sessionId = response.optString("sessionId"),
+                        challengeType = challenge?.optString("type").orEmpty(),
+                        expiresInSeconds = challenge?.optInt("expiresInSeconds") ?: 0,
+                        studentPreviewName = preview?.optString("fullName").orEmpty(),
+                        studentPreviewGroup = preview?.optString("group").orEmpty()
+                    )
+                }
+                return@withContext FaceAuthStartResult(
+                    success = false,
+                    message = response.optString("message", "Üz doğrulama sessiyası başladılmadı.")
+                )
+            }
+
+            FaceAuthStartResult(
+                success = false,
+                message = "Face verification backend-ə qoşulmaq mümkün olmadı."
+            )
+        }
+
+    suspend fun completeFaceAuth(
+        sessionId: String,
+        captures: List<String>,
+        blinkDetected: Boolean,
+        headTurnLeftDetected: Boolean
+    ): FaceAuthCompleteResult = withContext(Dispatchers.IO) {
+        val payload = JSONObject()
+            .put("sessionId", sessionId)
+            .put("captures", JSONArray(captures))
+            .put(
+                "challengeMeta",
+                JSONObject()
+                    .put("blinkDetected", blinkDetected)
+                    .put("headTurnLeftDetected", headTurnLeftDetected)
+            )
+
+        for (baseUrl in backendConfigStore.resolveBaseUrls()) {
+            val response = postJson(baseUrl, "/auth/face/complete", payload) ?: continue
+            if (response.optBoolean("success", false) && response.optBoolean("verified", false)) {
+                val student = response.optJSONObject("student")
+                return@withContext FaceAuthCompleteResult(
+                    success = true,
+                    verified = true,
+                    profile = student?.toProfile(baseUrl),
+                    matchScore = response.optDouble("matchScore", 0.0),
+                    livenessScore = response.optDouble("livenessScore", 0.0),
+                    message = response.optString("message"),
+                    confidenceBand = response.optString("confidenceBand"),
+                    captureQualityBand = response.optString("captureQualityBand"),
+                    retryable = response.optBoolean("retryable", false)
+                )
+            }
+            return@withContext FaceAuthCompleteResult(
+                success = false,
+                verified = false,
+                matchScore = response.optDouble("matchScore", 0.0),
+                livenessScore = response.optDouble("livenessScore", 0.0),
+                message = response.optString("message", "Ãz doÄrulamasÄ± uÄursuz oldu."),
+                failureReason = response.optString("failureReason"),
+                recommendedAction = response.optString("recommendedAction"),
+                confidenceBand = response.optString("confidenceBand"),
+                captureQualityBand = response.optString("captureQualityBand"),
+                retryable = response.optBoolean("retryable", true)
+            )
+        }
+
+        FaceAuthCompleteResult(
+            success = false,
+            verified = false,
+            message = "Face verification backend-ə qoşulmaq mümkün olmadı."
+        )
+    }
+
+    fun imageFileToBase64(path: String): String {
+        val file = File(path)
+        if (!file.exists()) return ""
+        val bytes = file.readBytes()
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+
     private fun JSONObject.toProfile(baseUrl: String): StudentProfile {
         val photoPath = optString("photoPath")
         return StudentProfile(
@@ -104,6 +221,8 @@ class BackendStudentService(
             name = optString("name"),
             fatherName = optString("fatherName"),
             id = optString("id"),
+            fin = optString("fin"),
+            identityCard = optString("identityCard"),
             faculty = optString("faculty"),
             department = optString("department"),
             specialty = optString("specialty"),

@@ -19,6 +19,7 @@ import com.atu.campus.data.StudentDirectoryEntry
 import com.atu.campus.services.AdminSelectedAttachment
 import com.atu.campus.services.AdminSelectedImage
 import com.atu.campus.services.BackendStudentService
+import com.atu.campus.services.CameraImageStore
 import com.atu.campus.services.CampusCommunityService
 import com.atu.campus.services.CampusContentService
 import com.atu.campus.services.FcmTokenSyncService
@@ -26,12 +27,15 @@ import com.atu.campus.services.NotificationSyncScheduler
 import com.atu.campus.services.StudentLookupStatus
 import com.google.firebase.messaging.FirebaseMessaging
 import com.atu.campus.ui.screens.AdminLoginScreen
+import com.atu.campus.ui.screens.FaceVerificationScreen
+import com.atu.campus.ui.screens.FaceVerificationFeedbackState
 import com.atu.campus.ui.screens.HomeScreen
 import com.atu.campus.ui.screens.NewsAdminScreen
 import com.atu.campus.ui.screens.SmsAdminScreen
 import com.atu.campus.ui.screens.SplashScreen
 import com.atu.campus.ui.screens.StudentAccessScreen
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class PendingAdminTarget {
@@ -47,6 +51,7 @@ fun AppNavigation(
     val context = LocalContext.current
     val storage = remember { LocalProfileStorage(context.applicationContext) }
     val backendStudentService = remember { BackendStudentService(context.applicationContext) }
+    val cameraImageStore = remember { CameraImageStore(context.applicationContext) }
     val contentService = remember { CampusContentService(context.applicationContext) }
     val communityService = remember { CampusCommunityService(context.applicationContext) }
     val notificationScheduler = remember { NotificationSyncScheduler(context.applicationContext) }
@@ -59,6 +64,12 @@ fun AppNavigation(
     var accessLoading by remember { mutableStateOf(false) }
     var adminLoginMessage by remember { mutableStateOf("") }
     var adminLoginLoading by remember { mutableStateOf(false) }
+    var faceAuthSessionId by remember { mutableStateOf("") }
+    var faceAuthPreviewName by remember { mutableStateOf("") }
+    var faceAuthPreviewGroup by remember { mutableStateOf("") }
+    var faceAuthMessage by remember { mutableStateOf("") }
+    var faceAuthLoading by remember { mutableStateOf(false) }
+    var faceAuthFeedbackState by remember { mutableStateOf(FaceVerificationFeedbackState.Idle) }
     var pendingAdminTarget by remember { mutableStateOf(PendingAdminTarget.News) }
     var adminToken by remember { mutableStateOf("") }
     var publishMessage by remember { mutableStateOf("") }
@@ -113,21 +124,86 @@ fun AppNavigation(
                             accessLoading = true
                             accessMessage = ""
                             coroutineScope.launch {
-                                val result = backendStudentService.lookupByCardNumber(cardNumber)
+                                val result = backendStudentService.startFaceAuth(cardNumber)
                                 accessLoading = false
-                                if (result.status == StudentLookupStatus.Verified && result.profile != null) {
-                                    storage.saveProfile(result.profile)
-                                    profile = result.profile
-                                    runCatching { FirebaseMessaging.getInstance().token }
-                                        .getOrNull()
-                                        ?.addOnSuccessListener { token ->
-                                            coroutineScope.launch {
-                                                fcmTokenSyncService.registerToken(result.profile.id, token)
-                                            }
-                                        }
-                                    currentScreen = Screen.Home
+                                if (result.success) {
+                                    faceAuthSessionId = result.sessionId
+                                    faceAuthPreviewName = result.studentPreviewName
+                                    faceAuthPreviewGroup = result.studentPreviewGroup
+                                    faceAuthMessage = ""
+                                    faceAuthFeedbackState = FaceVerificationFeedbackState.Idle
+                                    cameraImageStore.clearCapturedImages()
+                                    currentScreen = Screen.FaceVerification
                                 } else {
-                                    accessMessage = result.message
+                                    accessMessage = result.message.ifBlank {
+                                        "Üz doğrulama sessiyası başladılmadı."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+
+            Screen.FaceVerification -> FaceVerificationScreen(
+                studentPreviewName = faceAuthPreviewName,
+                studentPreviewGroup = faceAuthPreviewGroup,
+                imageStore = cameraImageStore,
+                loading = faceAuthLoading,
+                message = faceAuthMessage,
+                feedbackState = faceAuthFeedbackState,
+                onBack = {
+                    faceAuthLoading = false
+                    faceAuthMessage = ""
+                    faceAuthFeedbackState = FaceVerificationFeedbackState.Idle
+                    cameraImageStore.clearCapturedImages()
+                    currentScreen = Screen.StudentAccess
+                },
+                onSubmit = { captures, blinkDetected, headTurnLeftDetected ->
+                    faceAuthLoading = true
+                    faceAuthMessage = ""
+                    faceAuthFeedbackState = FaceVerificationFeedbackState.Idle
+                    coroutineScope.launch {
+                        val capturePayloads = captures.map { backendStudentService.imageFileToBase64(it) }
+                            .filter { it.isNotBlank() }
+                        val result = backendStudentService.completeFaceAuth(
+                            sessionId = faceAuthSessionId,
+                            captures = capturePayloads,
+                            blinkDetected = blinkDetected,
+                            headTurnLeftDetected = headTurnLeftDetected
+                        )
+                        faceAuthLoading = false
+                        if (result.success && result.verified && result.profile != null) {
+                            faceAuthFeedbackState = FaceVerificationFeedbackState.Success
+                            faceAuthMessage = "Şəxsiyyət və canlılıq uğurla təsdiqləndi."
+                            storage.saveProfile(result.profile)
+                            profile = result.profile
+                            cameraImageStore.clearCapturedImages()
+                            runCatching { FirebaseMessaging.getInstance().token }
+                                .getOrNull()
+                                ?.addOnSuccessListener { token ->
+                                    coroutineScope.launch {
+                                        fcmTokenSyncService.registerToken(result.profile.id, token)
+                                    }
+                                }
+                            delay(1100)
+                            faceAuthFeedbackState = FaceVerificationFeedbackState.Idle
+                            currentScreen = Screen.Home
+                        } else {
+                            faceAuthFeedbackState = FaceVerificationFeedbackState.Failure
+                            faceAuthMessage = buildString {
+                                append(
+                                    result.message.ifBlank {
+                                        "Üz doğrulaması tamamlanmadı."
+                                    }
+                                )
+                                if (result.recommendedAction.isNotBlank()) {
+                                    append("\n\n")
+                                    append(result.recommendedAction)
+                                }
+                                if (!result.retryable) {
+                                    append("\n\n")
+                                    append("Təhlükəsizlik səbəbi ilə canlı üzlə yenidən cəhd edin.")
                                 }
                             }
                         }
@@ -138,14 +214,14 @@ fun AppNavigation(
             Screen.AdminLogin -> AdminLoginScreen(
                 title = if (pendingAdminTarget == PendingAdminTarget.News) "News Admin" else "SMS Admin",
                 subtitle = if (pendingAdminTarget == PendingAdminTarget.News) {
-                    "ATU xəbər, elan və tədbirlərini idarə edin."
+                    "ATU xÉbÉr, elan vÉ tÉdbirlÉri idarÉ edin."
                 } else {
-                    "Tələbələri axtarın və onlara birbaşa bildiriş göndərin."
+                    "TÉlÉbÉlÉri axtarÄ±n vÉ onlara birbaÅa bildiriÅ gÃ¶ndÉrin."
                 },
                 ctaText = if (pendingAdminTarget == PendingAdminTarget.News) {
-                    "News Admin-ə daxil ol"
+                    "News Admin-É daxil ol"
                 } else {
-                    "SMS Admin-ə daxil ol"
+                    "SMS Admin-É daxil ol"
                 },
                 message = adminLoginMessage,
                 loading = adminLoginLoading,

@@ -150,6 +150,28 @@
     "attachmentName": "Dim a15.pdf",
     "createdAt": 1781206623817,
     "editedAt": 0,
+    "reactions": [
+      {
+        "emoji": "👍",
+        "userId": "145042",
+        "userName": "ŞABAN ÖMƏROV",
+        "photoPath": "/student-photo/145042"
+      }
+    ]
+  },
+  {
+    "id": "1781208297969-tffi5m",
+    "roomId": "group-1324a3",
+    "senderId": "145042",
+    "senderName": "ŞABAN ÖMƏROV",
+    "senderPhotoPath": "/student-photo/145042",
+    "senderRole": "STUDENT",
+    "text": "fft",
+    "mediaUrl": "",
+    "mediaType": "",
+    "attachmentName": "",
+    "createdAt": 1781208297970,
+    "editedAt": 0,
     "reactions": []
   }
 ]

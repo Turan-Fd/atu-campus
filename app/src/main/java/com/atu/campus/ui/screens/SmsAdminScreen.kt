@@ -102,12 +102,12 @@ fun SmsAdminScreen(
     ) { palette ->
         AtuTopHeader(greeting = "ATU Campus", title = "SMS Admin") {
             IconButton(onClick = onLogout) {
-                Icon(Icons.Outlined.Logout, contentDescription = "Çıxış", tint = palette.primary)
+                Icon(Icons.Outlined.Logout, contentDescription = "x", tint = palette.primary)
             }
         }
         AtuHeroCard(
-            title = "Hədəfli bildiriş göndər",
-            subtitle = "Tələbəni axtarın, seçin və ona birbaşa mesaj, sənəd və ya elan göndərin.",
+            title = "Hdfli bildiri gndr",
+            subtitle = "Tlbni axtarn, sein v ona birbaa mesaj, snd v ya elan gndrin.",
             minHeight = 184.dp
         ) {
             Icon(
@@ -122,7 +122,7 @@ fun SmsAdminScreen(
 
         PremiumCard(radius = 26.dp) {
             Text(
-                text = "Tələbə axtarışı",
+                text = "Tlb axtar",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black,
                 color = palette.text
@@ -132,7 +132,7 @@ fun SmsAdminScreen(
                 value = query,
                 onValueChange = { query = it.take(48) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Ad, soyad, iş nömrəsi və ya qrup") },
+                placeholder = { Text("Ad, soyad, i nmrsi v ya qrup") },
                 shape = RoundedCornerShape(20.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -144,11 +144,11 @@ fun SmsAdminScreen(
             )
             Spacer(Modifier.height(14.dp))
             when {
-                searching -> Text("Axtarılır...", color = palette.muted, style = MaterialTheme.typography.bodyMedium)
+                searching -> Text("Axtarlr...", color = palette.muted, style = MaterialTheme.typography.bodyMedium)
                 results.isEmpty() && query.length >= 2 -> {
                     AtuEmptyState(
-                        title = "Nəticə tapılmadı",
-                        subtitle = "Axtarış sözünü dəyişib yenidən yoxlayın.",
+                        title = "Ntic taplmad",
+                        subtitle = "Axtar szn dyiib yenidn yoxlayn.",
                         icon = Icons.Outlined.PersonSearch
                     )
                 }
@@ -174,7 +174,7 @@ fun SmsAdminScreen(
                 listOf(
                     "DIRECT" to "Mesaj",
                     "ANNOUNCEMENT" to "Elan",
-                    "EVENT" to "Tədbir"
+                    "EVENT" to "Tdbir"
                 ).forEach { item ->
                     AtuFilterChip(
                         label = item.second,
@@ -188,7 +188,7 @@ fun SmsAdminScreen(
                 value = title,
                 onValueChange = { title = it.take(120) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Başlıq") },
+                placeholder = { Text("Ba?l?q") },
                 singleLine = true,
                 shape = RoundedCornerShape(20.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -203,7 +203,7 @@ fun SmsAdminScreen(
                 value = body,
                 onValueChange = { body = it.take(2000) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Mətn") },
+                placeholder = { Text("M?tn") },
                 minLines = 4,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 shape = RoundedCornerShape(20.dp),
@@ -218,7 +218,7 @@ fun SmsAdminScreen(
             OutlinedButton(onClick = { attachmentPicker.launch("*/*") }, shape = RoundedCornerShape(18.dp)) {
                 Icon(Icons.Outlined.AttachFile, contentDescription = null, tint = palette.primary)
                 Text(
-                    text = attachment?.fileName ?: "Cihazdan sənəd əlavə et",
+                    text = attachment?.fileName ?: "Cihazdan s?n?d ?lav? et",
                     modifier = Modifier.padding(start = 8.dp),
                     color = palette.text,
                     fontWeight = FontWeight.SemiBold
@@ -228,14 +228,14 @@ fun SmsAdminScreen(
 
         AtuInlineNote(
             text = if (message.isBlank()) {
-                "Seçilən tələbələrə bildiriş birbaşa tətbiq daxilində görünəcək."
+                "Se?il?n t?l?b?l?r bildiri?i birba?a t?tbiq daxilind? g?r?c?k."
             } else {
                 message
             }
         )
 
         AtuPrimaryButton(
-            text = "Bildirişi göndər",
+            text = "Bildiri?i g?nd?r",
             enabled = selectedIds.isNotEmpty() && title.length >= 3 && body.length >= 4,
             loading = sending,
             onClick = { onSend(selectedIds.toList(), title, body, type, attachment) }
@@ -284,8 +284,8 @@ private fun StudentTargetRow(
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(student.fullName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
-                Text("ID ${student.id} • ${student.group}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                Text(student.specialty.ifBlank { "İxtisas təyin edilməyib" }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text("ID ${student.id}  ${student.group}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text(student.specialty.ifBlank { "xtisas tyin edilmyib" }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
             Box(
                 modifier = Modifier

@@ -5,6 +5,8 @@ data class StudentProfile(
     val name: String,
     val fatherName: String,
     val id: String,
+    val fin: String = "",
+    val identityCard: String = "",
     val faculty: String,
     val department: String,
     val specialty: String,

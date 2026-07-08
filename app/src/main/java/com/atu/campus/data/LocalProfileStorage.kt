@@ -12,6 +12,8 @@ class LocalProfileStorage(context: Context) {
             name = preferences.getString(KEY_NAME, "").orEmpty(),
             fatherName = preferences.getString(KEY_FATHER_NAME, "").orEmpty(),
             id = id,
+            fin = preferences.getString(KEY_FIN, "").orEmpty(),
+            identityCard = preferences.getString(KEY_IDENTITY_CARD, "").orEmpty(),
             faculty = preferences.getString(KEY_FACULTY, "").orEmpty(),
             department = preferences.getString(KEY_DEPARTMENT, "").orEmpty(),
             specialty = preferences.getString(KEY_SPECIALTY, "").orEmpty(),
@@ -30,6 +32,8 @@ class LocalProfileStorage(context: Context) {
             .putString(KEY_NAME, profile.name)
             .putString(KEY_FATHER_NAME, profile.fatherName)
             .putString(KEY_ID, profile.id)
+            .putString(KEY_FIN, profile.fin)
+            .putString(KEY_IDENTITY_CARD, profile.identityCard)
             .putString(KEY_FACULTY, profile.faculty)
             .putString(KEY_DEPARTMENT, profile.department)
             .putString(KEY_SPECIALTY, profile.specialty)
@@ -51,6 +55,8 @@ class LocalProfileStorage(context: Context) {
         const val KEY_NAME = "name"
         const val KEY_FATHER_NAME = "father_name"
         const val KEY_ID = "id"
+        const val KEY_FIN = "fin"
+        const val KEY_IDENTITY_CARD = "identity_card"
         const val KEY_FACULTY = "faculty"
         const val KEY_DEPARTMENT = "department"
         const val KEY_SPECIALTY = "specialty"
