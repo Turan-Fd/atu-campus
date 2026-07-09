@@ -311,16 +311,7 @@ async function readReferenceImagePayload(studentId) {
 }
 
 async function runFaceVerificationInference({ session, captures, challengeMeta }) {
-  const referenceImage = await readReferenceImagePayload(session.studentId);
-  if (!referenceImage) {
-    return {
-      available: false,
-      verified: false,
-      reason: "reference_image_not_found"
-    };
-  }
-
-  if (!FACE_VERIFICATION_SERVICE_URL) {
+  const challengeFallback = (reason) => {
     const blinkDetected = Boolean(challengeMeta?.blinkDetected);
     const headTurnDetected = Boolean(
       challengeMeta?.headTurnLeftDetected ||
@@ -350,29 +341,42 @@ async function runFaceVerificationInference({ session, captures, challengeMeta }
         headTurnDetected
       }
     };
-  }
-
-  const response = await fetch(`${FACE_VERIFICATION_SERVICE_URL.replace(/\/$/, "")}/verify`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      referenceImageBase64: referenceImage.base64,
-      referenceImageMimeType: referenceImage.mimeType,
-      captureImages: captures.map(stripBase64Prefix),
-      challengeMeta
-    })
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`Face verification service failed with status ${response.status}`);
-  }
-  return {
-    available: true,
-    ...data
   };
+
+  const referenceImage = await readReferenceImagePayload(session.studentId);
+  if (!referenceImage) {
+    return challengeFallback("reference_image_not_found");
+  }
+
+  if (!FACE_VERIFICATION_SERVICE_URL) {
+    return challengeFallback("face_verification_service_not_configured");
+  }
+
+  try {
+    const response = await fetch(`${FACE_VERIFICATION_SERVICE_URL.replace(/\/$/, "")}/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        referenceImageBase64: referenceImage.base64,
+        referenceImageMimeType: referenceImage.mimeType,
+        captureImages: captures.map(stripBase64Prefix),
+        challengeMeta
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return challengeFallback(`face_verification_service_status_${response.status}`);
+    }
+    return {
+      available: true,
+      ...data
+    };
+  } catch (error) {
+    return challengeFallback("face_verification_service_unreachable");
+  }
 }
 
 function faceFailureMessage(reason) {
