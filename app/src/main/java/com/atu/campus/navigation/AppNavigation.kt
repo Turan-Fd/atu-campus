@@ -16,24 +16,22 @@ import androidx.compose.ui.platform.LocalContext
 import com.atu.campus.data.LocalProfileStorage
 import com.atu.campus.data.NotificationOpenPayload
 import com.atu.campus.data.StudentDirectoryEntry
-import com.atu.campus.services.AdminSelectedAttachment
-import com.atu.campus.services.AdminSelectedImage
 import com.atu.campus.services.BackendStudentService
 import com.atu.campus.services.CameraImageStore
 import com.atu.campus.services.CampusCommunityService
 import com.atu.campus.services.CampusContentService
 import com.atu.campus.services.FcmTokenSyncService
 import com.atu.campus.services.NotificationSyncScheduler
-import com.atu.campus.services.StudentLookupStatus
-import com.google.firebase.messaging.FirebaseMessaging
 import com.atu.campus.ui.screens.AdminLoginScreen
-import com.atu.campus.ui.screens.FaceVerificationScreen
 import com.atu.campus.ui.screens.FaceVerificationFeedbackState
+import com.atu.campus.ui.screens.FaceVerificationMode
+import com.atu.campus.ui.screens.FaceVerificationScreen
 import com.atu.campus.ui.screens.HomeScreen
 import com.atu.campus.ui.screens.NewsAdminScreen
 import com.atu.campus.ui.screens.SmsAdminScreen
 import com.atu.campus.ui.screens.SplashScreen
 import com.atu.campus.ui.screens.StudentAccessScreen
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -67,6 +65,7 @@ fun AppNavigation(
     var faceAuthSessionId by remember { mutableStateOf("") }
     var faceAuthPreviewName by remember { mutableStateOf("") }
     var faceAuthPreviewGroup by remember { mutableStateOf("") }
+    var faceAuthMode by remember { mutableStateOf(FaceVerificationMode.Verify) }
     var faceAuthMessage by remember { mutableStateOf("") }
     var faceAuthLoading by remember { mutableStateOf(false) }
     var faceAuthFeedbackState by remember { mutableStateOf(FaceVerificationFeedbackState.Idle) }
@@ -106,8 +105,8 @@ fun AppNavigation(
             Screen.StudentAccess -> StudentAccessScreen(
                 message = accessMessage,
                 loading = accessLoading,
-                onContinue = { cardNumber ->
-                    when (cardNumber) {
+                onContinue = { studentId, fin ->
+                    when (studentId) {
                         NEWS_ADMIN_ACCESS_CODE -> {
                             pendingAdminTarget = PendingAdminTarget.News
                             accessMessage = ""
@@ -124,12 +123,13 @@ fun AppNavigation(
                             accessLoading = true
                             accessMessage = ""
                             coroutineScope.launch {
-                                val result = backendStudentService.startFaceAuth(cardNumber)
+                                val result = backendStudentService.startFaceAuth(studentId, fin)
                                 accessLoading = false
                                 if (result.success) {
                                     faceAuthSessionId = result.sessionId
                                     faceAuthPreviewName = result.studentPreviewName
                                     faceAuthPreviewGroup = result.studentPreviewGroup
+                                    faceAuthMode = result.mode
                                     faceAuthMessage = ""
                                     faceAuthFeedbackState = FaceVerificationFeedbackState.Idle
                                     cameraImageStore.clearCapturedImages()
@@ -148,6 +148,7 @@ fun AppNavigation(
             Screen.FaceVerification -> FaceVerificationScreen(
                 studentPreviewName = faceAuthPreviewName,
                 studentPreviewGroup = faceAuthPreviewGroup,
+                mode = faceAuthMode,
                 imageStore = cameraImageStore,
                 loading = faceAuthLoading,
                 message = faceAuthMessage,
@@ -175,7 +176,11 @@ fun AppNavigation(
                         faceAuthLoading = false
                         if (result.success && result.verified && result.profile != null) {
                             faceAuthFeedbackState = FaceVerificationFeedbackState.Success
-                            faceAuthMessage = "Şəxsiyyət və canlılıq uğurla təsdiqləndi."
+                            faceAuthMessage = if (faceAuthMode == FaceVerificationMode.Enroll) {
+                                "Üz profili yaradıldı və canlılıq təsdiqləndi."
+                            } else {
+                                "Şəxsiyyət və canlılıq uğurla təsdiqləndi."
+                            }
                             storage.saveProfile(result.profile)
                             profile = result.profile
                             cameraImageStore.clearCapturedImages()

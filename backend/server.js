@@ -2,6 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
+const crypto = require("node:crypto");
 let firebaseAdmin = null;
 try {
   firebaseAdmin = require("firebase-admin");
@@ -14,6 +15,7 @@ const dataDirectory = path.join(__dirname, "data");
 const statisticsStudentsPath = path.join(dataDirectory, "statistika-students.json");
 const legacyStudentsPath = path.join(dataDirectory, "students.json");
 const studentPhotosManifestPath = path.join(dataDirectory, "student-photos.json");
+const enrolledFaceDirectory = path.join(dataDirectory, "student-face-references");
 const campusContentPath = path.join(dataDirectory, "campus-content.json");
 const campusUploadDirectory = path.join(dataDirectory, "campus-uploads");
 const campusNotificationsPath = path.join(dataDirectory, "campus-notifications.json");
@@ -29,6 +31,9 @@ const FIREBASE_SERVICE_ACCOUNT_PATH = process.env.FIREBASE_SERVICE_ACCOUNT_PATH 
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "";
 const FACE_AUTH_SESSION_EXPIRY_MS = Number(process.env.FACE_AUTH_SESSION_EXPIRY_MS || 180000);
 const FACE_VERIFICATION_SERVICE_URL = String(process.env.FACE_VERIFICATION_SERVICE_URL || "").trim();
+const CLOUDINARY_CLOUD_NAME = String(process.env.CLOUDINARY_CLOUD_NAME || "").trim();
+const CLOUDINARY_API_KEY = String(process.env.CLOUDINARY_API_KEY || "").trim();
+const CLOUDINARY_API_SECRET = String(process.env.CLOUDINARY_API_SECRET || "").trim();
 
 const loginStudents = fs.existsSync(legacyStudentsPath)
   ? JSON.parse(fs.readFileSync(legacyStudentsPath, "utf8"))
@@ -41,6 +46,9 @@ const studentPhotosDirectory =
 
 if (!fs.existsSync(campusUploadDirectory)) {
   fs.mkdirSync(campusUploadDirectory, { recursive: true });
+}
+if (!fs.existsSync(enrolledFaceDirectory)) {
+  fs.mkdirSync(enrolledFaceDirectory, { recursive: true });
 }
 
 function readJsonFile(filePath, fallback) {
@@ -62,6 +70,13 @@ function writeJsonFile(filePath, data) {
 function normalizeWorkNumber(value) {
   const digits = String(value || "").replace(/\D/g, "").replace(/^0+/, "");
   return digits || "0";
+}
+
+function normalizeFin(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 function normalize(value) {
@@ -94,6 +109,17 @@ function buildStudentIndex(items) {
   return index;
 }
 
+function resolvePhotoReference(reference) {
+  const stringValue = String(reference || "").trim();
+  if (!stringValue) return "";
+  if (/^https?:\/\//i.test(stringValue)) return stringValue;
+  if (path.isAbsolute(stringValue)) return stringValue;
+  if (stringValue.startsWith("enrolled/")) {
+    return path.join(dataDirectory, stringValue);
+  }
+  return path.join(studentPhotosDirectory, stringValue);
+}
+
 const studentsByWorkNumber = buildStudentIndex(students);
 const photoManifest = fs.existsSync(studentPhotosManifestPath)
   ? JSON.parse(fs.readFileSync(studentPhotosManifestPath, "utf8"))
@@ -101,9 +127,7 @@ const photoManifest = fs.existsSync(studentPhotosManifestPath)
 const photosByWorkNumber = new Map(
   Object.entries(photoManifest).map(([workNumber, relativePath]) => [
     normalizeWorkNumber(workNumber),
-    /^https?:\/\//i.test(String(relativePath || ""))
-      ? String(relativePath || "")
-      : path.join(studentPhotosDirectory, relativePath)
+    resolvePhotoReference(relativePath)
   ])
 );
 
@@ -200,6 +224,83 @@ function saveCampusUpload(base64Data, mimeType, originalName = "") {
   return `/campus-upload/${encodeURIComponent(fileName)}`;
 }
 
+function writeStudentPhotoManifest() {
+  const payload = Object.fromEntries(
+    [...photosByWorkNumber.entries()].map(([workNumber, reference]) => {
+      if (path.isAbsolute(reference) && reference.startsWith(enrolledFaceDirectory)) {
+        return [workNumber, path.relative(dataDirectory, reference).replace(/\\/g, "/")];
+      }
+      return [workNumber, reference];
+    })
+  );
+  writeJsonFile(studentPhotosManifestPath, payload);
+}
+
+async function uploadStudentPhotoToCloudinary(workNumber, base64Data, mimeType = "image/jpeg") {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+    return "";
+  }
+
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const paramsToSign = {
+    folder: "atu-campus/students",
+    overwrite: "true",
+    public_id: String(workNumber),
+    timestamp
+  };
+  const signaturePayload = Object.keys(paramsToSign)
+    .sort()
+    .map(key => `${key}=${paramsToSign[key]}`)
+    .join("&");
+  const signature = crypto
+    .createHash("sha1")
+    .update(`${signaturePayload}${CLOUDINARY_API_SECRET}`)
+    .digest("hex");
+
+  const form = new FormData();
+  Object.entries(paramsToSign).forEach(([key, value]) => form.append(key, value));
+  form.append("api_key", CLOUDINARY_API_KEY);
+  form.append("signature", signature);
+  form.append(
+    "file",
+    new Blob([Buffer.from(stripBase64Prefix(base64Data), "base64")], { type: mimeType }),
+    `${workNumber}${detectUploadExtension(mimeType, `${workNumber}.jpg`)}`
+  );
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: "POST",
+    body: form
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.secure_url) {
+    throw new Error(`Cloudinary upload failed with status ${response.status}`);
+  }
+  return String(payload.secure_url);
+}
+
+async function persistStudentReferencePhoto(studentId, base64Data, mimeType = "image/jpeg") {
+  const workNumber = normalizeWorkNumber(studentId);
+  if (!base64Data || workNumber === "0") return "";
+
+  let reference = "";
+  try {
+    reference = await uploadStudentPhotoToCloudinary(workNumber, base64Data, mimeType);
+  } catch (error) {
+    console.error("Cloudinary upload failed, falling back to local reference", error?.message || error);
+  }
+
+  if (!reference) {
+    const extension = detectUploadExtension(mimeType, `${workNumber}.jpg`);
+    const filePath = path.join(enrolledFaceDirectory, `${workNumber}${extension}`);
+    fs.writeFileSync(filePath, Buffer.from(stripBase64Prefix(base64Data), "base64"));
+    reference = filePath;
+  }
+
+  photosByWorkNumber.set(workNumber, reference);
+  writeStudentPhotoManifest();
+  return publicStudentPhotoPath(workNumber);
+}
+
 function publicStudentPhotoPath(workNumber) {
   const reference = photosByWorkNumber.get(normalizeWorkNumber(workNumber));
   if (!reference) return "";
@@ -229,8 +330,13 @@ function publicStudent(student) {
   };
 }
 
-function createFaceAuthSession(student) {
+function studentFinMatches(student, suppliedFin) {
+  return normalizeFin(student?.fin) === normalizeFin(suppliedFin);
+}
+
+function createFaceAuthSession(student, mode = "VERIFY") {
   const now = Date.now();
+  const referencePhotoAvailable = Boolean(publicStudentPhotoPath(student.workNumber));
   const session = {
     id: `face_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     studentId: normalizeWorkNumber(student.workNumber),
@@ -238,6 +344,8 @@ function createFaceAuthSession(student) {
     expiresAt: now + FACE_AUTH_SESSION_EXPIRY_MS,
     attempts: 0,
     status: "PENDING",
+    mode,
+    referencePhotoAvailable,
     referenceImageUrl: publicStudentPhotoPath(student.workNumber),
     challenge: {
       type: "blink_and_turn_left",
@@ -335,7 +443,7 @@ async function runFaceVerificationInference({ session, captures, challengeMeta }
         : "Kamera qarşısında göz qırpın, başınızı sola çevirin və kadrların tam çəkildiyinə əmin olun.",
       debug: {
         mode: "challenge_fallback",
-        reason: "face_verification_service_not_configured",
+        reason,
         capturesCount: captures.length,
         blinkDetected,
         headTurnDetected
@@ -1124,10 +1232,19 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/auth/face/start") {
     const payload = await readBody(request);
     const studentNumber = normalizeWorkNumber(payload.studentNumber);
+    const fin = normalizeFin(payload.fin);
     if (studentNumber === "0") {
       return sendJson(response, 400, {
         success: false,
         message: "Tələbə nömrəsi tələb olunur."
+      });
+    }
+
+    if (!fin) {
+      return sendJson(response, 400, {
+        success: false,
+        code: "FIN_REQUIRED",
+        message: "FIN kodu tələb olunur."
       });
     }
 
@@ -1161,7 +1278,22 @@ const server = http.createServer(async (request, response) => {
     }
 
     const student = matches[0];
-    const session = createFaceAuthSession(student);
+    if (!studentFinMatches(student, fin)) {
+      appendFaceAuthAudit({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        event: "FACE_AUTH_START_FIN_MISMATCH",
+        studentId: studentNumber,
+        createdAt: Date.now()
+      });
+      return sendJson(response, 401, {
+        success: false,
+        code: "FIN_MISMATCH",
+        message: "FIN kodu bu tələbə nömrəsinə uyğun gəlmir."
+      });
+    }
+
+    const mode = publicStudentPhotoPath(student.workNumber) ? "VERIFY" : "ENROLL";
+    const session = createFaceAuthSession(student, mode);
     appendFaceAuthAudit({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       event: "FACE_AUTH_START_CREATED",
@@ -1173,6 +1305,8 @@ const server = http.createServer(async (request, response) => {
     return sendJson(response, 200, {
       success: true,
       sessionId: session.id,
+      mode: session.mode,
+      referencePhotoAvailable: session.referencePhotoAvailable,
       challenge: session.challenge,
       studentPreview: {
         fullName: `${student.name || ""} ${student.surname || ""}`.trim(),
@@ -1284,6 +1418,10 @@ const server = http.createServer(async (request, response) => {
             expiresAt: session.expiresAt
           }
         });
+      }
+
+      if (session.mode === "ENROLL" && captures[0]) {
+        await persistStudentReferencePhoto(session.studentId, captures[0], "image/jpeg");
       }
 
       return sendJson(response, 200, {

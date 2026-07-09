@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
@@ -38,13 +39,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.atu.campus.R
 import com.atu.campus.ui.components.AtuInlineNote
 import com.atu.campus.ui.components.AtuInputField
-import com.atu.campus.ui.components.AtuLogoHeader
 import com.atu.campus.ui.components.AtuPrimaryButton
 import com.atu.campus.ui.components.AtuScreen
 import com.atu.campus.ui.components.AtuSoftCard
@@ -52,99 +54,162 @@ import com.atu.campus.ui.theme.AtuColors
 import com.atu.campus.ui.theme.AtuPrimary
 import com.atu.campus.ui.theme.AtuWhite
 
+private const val NEWS_ADMIN_ACCESS_CODE = "1970103"
+private const val SMS_ADMIN_ACCESS_CODE = "899913"
+
 @Composable
 fun StudentAccessScreen(
     message: String,
     loading: Boolean,
-    onContinue: (String) -> Unit
+    onContinue: (studentId: String, fin: String) -> Unit
 ) {
-    var code by remember { mutableStateOf("") }
+    var studentId by remember { mutableStateOf("") }
+    var fin by remember { mutableStateOf("") }
     var showGuide by remember { mutableStateOf(false) }
 
-    AtuScreen(verticalArrangement = Arrangement.spacedBy(18.dp)) { palette ->
-        AtuLogoHeader(modifier = Modifier.padding(top = 8.dp), subtitle = "")
+    val normalizedStudentId = studentId.filter(Char::isDigit)
+    val normalizedFin = fin.trim().uppercase()
+    val adminMode = normalizedStudentId == NEWS_ADMIN_ACCESS_CODE || normalizedStudentId == SMS_ADMIN_ACCESS_CODE
+    val canContinue = if (adminMode) {
+        normalizedStudentId.length >= 6
+    } else {
+        normalizedStudentId.length >= 6 && normalizedFin.length >= 7
+    }
 
+    AtuScreen(verticalArrangement = Arrangement.spacedBy(18.dp)) { palette ->
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(190.dp)
-                .clip(RoundedCornerShape(32.dp))
+                .height(220.dp)
+                .clip(RoundedCornerShape(34.dp))
                 .background(
                     Brush.linearGradient(
-                        listOf(
+                        colors = listOf(
                             AtuWhite,
                             AtuColors.SoftPrimary,
                             AtuColors.SoftPurple
                         )
                     )
                 )
+                .padding(24.dp)
         ) {
-            Image(
-                painter = painterResource(R.drawable.atu_logo),
-                contentDescription = "ATU",
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 26.dp)
-                    .size(116.dp),
-                alpha = 0.94f
-            )
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.align(Alignment.TopStart),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = AtuWhite.copy(alpha = 0.72f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Fingerprint,
+                            contentDescription = null,
+                            tint = AtuPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Təhlükəsiz tələbə girişi",
+                            color = palette.text,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
                 Text(
                     text = "Xoş gəlmisiniz!",
                     color = palette.text,
                     style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = "Hesabınıza daxil olaraq universitet həyatınızı asanlaşdırın.",
+                    text = "Tələbə nömrənizi və FIN kodunuzu daxil edin. Uyğunluq təsdiqləndikdən sonra üz doğrulaması ilə davam edəcəksiniz.",
                     color = palette.textSecondary,
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth(0.68f)
+                    modifier = Modifier.fillMaxWidth(0.74f)
                 )
             }
+
+            Image(
+                painter = painterResource(R.drawable.atu_logo),
+                contentDescription = "ATU",
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(122.dp),
+                alpha = 0.92f
+            )
         }
 
-        AtuSoftCard(radius = 26.dp) {
+        AtuSoftCard(radius = 28.dp) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tələbə məlumatı",
+                    text = "Giriş məlumatları",
                     color = palette.text,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 IconButton(onClick = { showGuide = true }) {
-                    Icon(Icons.Outlined.Info, contentDescription = "Təlimat", tint = palette.primary)
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = "Təlimat",
+                        tint = palette.primary
+                    )
                 }
             }
 
             AtuInputField(
-                value = code,
-                onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                value = studentId,
+                onValueChange = { studentId = it.filter(Char::isDigit).take(8) },
                 label = "Tələbə vəsiqəsi nömrəsi",
                 placeholder = "Məs: 193253",
-                leadingIcon = Icons.Outlined.Badge
+                leadingIcon = Icons.Outlined.Badge,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
+
+            if (!adminMode) {
+                AtuInputField(
+                    value = fin,
+                    onValueChange = { value ->
+                        fin = value
+                            .uppercase()
+                            .filter { char -> char.isLetterOrDigit() }
+                            .take(7)
+                    },
+                    label = "FIN kodu",
+                    placeholder = "Məs: 7BV5777",
+                    leadingIcon = Icons.Outlined.Lock,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Characters,
+                        keyboardType = KeyboardType.Ascii
+                    )
+                )
+            }
 
             AtuInlineNote(
                 icon = Icons.Outlined.Lock,
-                text = "Bu girişdə parol tələb olunmur. Növbəti addımda üz doğrulaması ilə davam edəcəksiniz."
+                text = if (adminMode) {
+                    "Administrator girişi aşkarlandı. Növbəti addımda parol yoxlaması açılacaq."
+                } else {
+                    "FIN kodu yalnız bu tələbə nömrəsi ilə uyğunluğu yoxlamaq üçün istifadə olunur. Doğrulama uğurlu olsa, üz skanı açılacaq."
+                }
             )
 
             AtuPrimaryButton(
-                text = "Daxil ol",
-                enabled = code.length == 6,
+                text = if (adminMode) "Davam et" else "Üz doğrulamasına keç",
+                enabled = canContinue,
                 loading = loading,
                 showArrow = true,
-                onClick = { onContinue(code) }
+                onClick = { onContinue(normalizedStudentId, normalizedFin) }
             )
 
             Text(
@@ -169,8 +234,8 @@ fun StudentAccessScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(15.dp))
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .background(AtuColors.SoftPrimary),
                         contentAlignment = Alignment.Center
                     ) {
@@ -178,13 +243,13 @@ fun StudentAccessScreen(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Biometrik giriş",
+                            text = "Biometrik giriş",
                             color = palette.text,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Üz ilə təhlükəsiz təsdiq",
+                            text = "Əvvəl məlumat uyğunluğu, sonra canlı üz təsdiqi",
                             color = palette.textSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -199,7 +264,7 @@ fun StudentAccessScreen(
                 text = if (current.isNotBlank()) {
                     current
                 } else {
-                    "Mövcud tələbə məlumatı saxlanılır və növbəti addımda üz doğrulaması ilə yoxlanılır."
+                    "Yeni tələbənin referans şəkli yoxdursa, ilk uğurlu canlı üz skanı profil şəkli kimi saxlanacaq."
                 }
             )
         }
@@ -233,7 +298,11 @@ fun StudentAccessScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Təlimat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "Təlimat",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
                         IconButton(onClick = { showGuide = false }) {
                             Icon(Icons.Outlined.Close, contentDescription = "Bağla")
                         }
@@ -248,7 +317,7 @@ fun StudentAccessScreen(
                     )
                     AtuInlineNote(
                         icon = Icons.Outlined.Info,
-                        text = "Nömrəni vəsiqənin ön hissəsindəki \"Tələbə vəsiqəsi №\" sahəsindən daxil edin."
+                        text = "Nömrəni vəsiqənin ön hissəsindəki \"Tələbə vəsiqəsi №\" sahəsindən, FIN kodunu isə şəxsi məlumatlarınızdan daxil edin."
                     )
                 }
             }

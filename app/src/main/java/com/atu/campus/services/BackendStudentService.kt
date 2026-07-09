@@ -3,6 +3,7 @@ package com.atu.campus.services
 import android.content.Context
 import android.util.Base64
 import com.atu.campus.data.StudentProfile
+import com.atu.campus.ui.screens.FaceVerificationMode
 import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -33,6 +34,8 @@ data class FaceAuthStartResult(
     val expiresInSeconds: Int = 0,
     val studentPreviewName: String = "",
     val studentPreviewGroup: String = "",
+    val mode: FaceVerificationMode = FaceVerificationMode.Verify,
+    val referencePhotoAvailable: Boolean = true,
     val message: String = ""
 )
 
@@ -60,7 +63,7 @@ class BackendStudentService(
             if (scan.candidates.isEmpty()) {
                 return@withContext StudentLookupResult(
                     status = StudentLookupStatus.NotFound,
-                    message = "V\u0259siq\u0259 n\u00F6mr\u0259si oxunmad\u0131. Kart\u0131 i\u015F\u0131ql\u0131 m\u00FChitd\u0259 yenid\u0259n skan edin."
+                    message = "Vəsiqə nömrəsi oxunmadı. Kartı işıqlı mühitdə yenidən skan edin."
                 )
             }
 
@@ -87,7 +90,7 @@ class BackendStudentService(
                         cardNumber = response.optString("cardNumber"),
                         message = response.optString(
                             "message",
-                            "Bu n\u00F6mr\u0259 bird\u0259n \u00E7ox t\u0259l\u0259b\u0259y\u0259 aiddir. M\u0259lumat administrator t\u0259r\u0259find\u0259n d\u0259qiql\u0259\u015Fdirilm\u0259lidir."
+                            "Bu nömrə birdən çox tələbəyə aiddir. Məlumat administrator tərəfindən dəqiqləşdirilməlidir."
                         )
                     )
                 }
@@ -97,13 +100,13 @@ class BackendStudentService(
                 StudentLookupResult(
                     status = StudentLookupStatus.NotFound,
                     cardNumber = scan.cardNumber,
-                    message = "Bu v\u0259siq\u0259 n\u00F6mr\u0259si t\u0259l\u0259b\u0259 datas\u0131nda tap\u0131lmad\u0131."
+                    message = "Bu vəsiqə nömrəsi tələbə datasında tapılmadı."
                 )
             } else {
                 StudentLookupResult(
                     status = StudentLookupStatus.BackendUnavailable,
                     cardNumber = scan.cardNumber,
-                    message = "T\u0259l\u0259b\u0259 datas\u0131 il\u0259 \u0259laq\u0259 qurulmad\u0131. Backend-i ba\u015Flad\u0131b yenid\u0259n yoxlay\u0131n."
+                    message = "Tələbə datası ilə əlaqə qurulmadı. Backend-i başladıb yenidən yoxlayın."
                 )
             }
         }
@@ -123,10 +126,12 @@ class BackendStudentService(
         return lookupByCardNumber(profile.id).profile ?: profile
     }
 
-    suspend fun startFaceAuth(cardNumber: String): FaceAuthStartResult =
+    suspend fun startFaceAuth(cardNumber: String, fin: String): FaceAuthStartResult =
         withContext(Dispatchers.IO) {
             val normalized = cardNumber.filter(Char::isDigit).trimStart('0').ifBlank { "0" }
-            val payload = JSONObject().put("studentNumber", normalized)
+            val payload = JSONObject()
+                .put("studentNumber", normalized)
+                .put("fin", fin.trim().uppercase())
 
             for (baseUrl in backendConfigStore.resolveBaseUrls()) {
                 val response = postJson(baseUrl, "/auth/face/start", payload) ?: continue
@@ -139,7 +144,13 @@ class BackendStudentService(
                         challengeType = challenge?.optString("type").orEmpty(),
                         expiresInSeconds = challenge?.optInt("expiresInSeconds") ?: 0,
                         studentPreviewName = preview?.optString("fullName").orEmpty(),
-                        studentPreviewGroup = preview?.optString("group").orEmpty()
+                        studentPreviewGroup = preview?.optString("group").orEmpty(),
+                        mode = if (response.optString("mode") == "ENROLL") {
+                            FaceVerificationMode.Enroll
+                        } else {
+                            FaceVerificationMode.Verify
+                        },
+                        referencePhotoAvailable = response.optBoolean("referencePhotoAvailable", true)
                     )
                 }
                 return@withContext FaceAuthStartResult(
@@ -191,7 +202,7 @@ class BackendStudentService(
                 verified = false,
                 matchScore = response.optDouble("matchScore", 0.0),
                 livenessScore = response.optDouble("livenessScore", 0.0),
-                message = response.optString("message", "Ãz doÄrulamasÄ± uÄursuz oldu."),
+                message = response.optString("message", "Üz doğrulaması uğursuz oldu."),
                 failureReason = response.optString("failureReason"),
                 recommendedAction = response.optString("recommendedAction"),
                 confidenceBand = response.optString("confidenceBand"),

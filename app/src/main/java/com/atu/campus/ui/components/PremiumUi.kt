@@ -97,6 +97,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -517,7 +518,8 @@ fun AtuInputField(
     onTrailingClick: (() -> Unit)? = null,
     singleLine: Boolean = true,
     readOnly: Boolean = false,
-    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     val palette = atuPalette(darkMode)
     Column(
@@ -539,6 +541,7 @@ fun AtuInputField(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(placeholder, color = palette.textMuted) },
             singleLine = singleLine,
+            keyboardOptions = keyboardOptions,
             shape = RoundedCornerShape(AtuRadius.input),
             visualTransformation = visualTransformation,
             leadingIcon = {

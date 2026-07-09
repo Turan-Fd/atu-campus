@@ -12,6 +12,10 @@ class CameraImageStore(private val context: Context) {
         return File(scanDirectory, "student_card_${System.currentTimeMillis()}.jpg")
     }
 
+    fun createFaceImageFile(): File {
+        return File(scanDirectory, "face_capture_${System.currentTimeMillis()}.jpg")
+    }
+
     fun uriFor(file: File): Uri = Uri.fromFile(file)
 
     fun clearCapturedImages() {

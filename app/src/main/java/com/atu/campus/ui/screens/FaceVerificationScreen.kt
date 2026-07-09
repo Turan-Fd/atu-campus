@@ -2,9 +2,15 @@ package com.atu.campus.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.graphics.Bitmap
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -16,12 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,14 +37,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Camera
-import androidx.compose.material.icons.outlined.Cameraswitch
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,8 +50,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +59,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,7 +76,6 @@ import com.atu.campus.services.CameraImageStore
 import com.atu.campus.services.FaceChallengeAnalyzer
 import com.atu.campus.ui.components.AtuInlineNote
 import com.atu.campus.ui.components.AtuPrimaryButton
-import com.atu.campus.ui.components.AtuScanOverlay
 import com.atu.campus.ui.components.AtuStatusBadge
 import com.atu.campus.ui.components.atuPressScale
 import com.atu.campus.ui.theme.AtuDanger
@@ -92,10 +97,16 @@ enum class FaceVerificationFeedbackState {
     Failure
 }
 
+enum class FaceVerificationMode {
+    Verify,
+    Enroll
+}
+
 @Composable
 fun FaceVerificationScreen(
     studentPreviewName: String,
     studentPreviewGroup: String,
+    mode: FaceVerificationMode,
     imageStore: CameraImageStore,
     loading: Boolean,
     message: String,
@@ -114,13 +125,21 @@ fun FaceVerificationScreen(
     }
     val challengeAnalyzer = remember { FaceChallengeAnalyzer(context.applicationContext) }
 
-    val steps = remember {
+    val steps = remember(mode) {
         listOf(
-            FaceChallengeStep("1/3", "Kameraya düz baxın və ilk kadrı çəkin"),
-            FaceChallengeStep("2/3", "Göz qırpın və ikinci kadrı çəkin"),
-            FaceChallengeStep("3/3", "Başınızı sola çevirin və üçüncü kadrı çəkin")
+            FaceChallengeStep("Kadr 1", "Üzünüzü dairənin mərkəzində sabit saxlayın"),
+            FaceChallengeStep("Kadr 2", "Canlılıq üçün bir dəfə göz qırpın"),
+            FaceChallengeStep(
+                "Kadr 3",
+                if (mode == FaceVerificationMode.Enroll) {
+                    "Yeni referans şəkli yaratmaq üçün başınızı azca sola çevirin"
+                } else {
+                    "Müqayisə üçün başınızı azca sola çevirin"
+                }
+            )
         )
     }
+
     val capturedPaths = remember { mutableStateListOf<String>() }
     var currentStepIndex by remember { mutableIntStateOf(0) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
@@ -140,15 +159,19 @@ fun FaceVerificationScreen(
     var analyzerAvailable by remember { mutableStateOf(challengeAnalyzer.isAvailable()) }
     var analyzerConfidence by remember { mutableFloatStateOf(0f) }
     var autoCaptureInFlight by remember { mutableStateOf(false) }
-    val pulseTransition = rememberInfiniteTransition(label = "capturePulse")
-    val pulseScale by pulseTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
+
+    val ambient = rememberInfiniteTransition(label = "faceCaptureAmbient")
+    val haloPulse by ambient.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(animation = tween(1500), repeatMode = RepeatMode.Reverse),
+        label = "haloPulse"
+    )
+    val scanDrift by ambient.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1900), repeatMode = RepeatMode.Restart),
+        label = "scanDrift"
     )
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -191,7 +214,7 @@ fun FaceVerificationScreen(
                 permissionMissing = false
                 localError = ""
             } catch (_: Exception) {
-                localError = "Ön kamera açılmadı. Cihaz icazələrini yoxlayın."
+                localError = "Ön kamera açıla bilmədi. Cihaz icazələrini yoxlayın."
             }
         }
         providerFuture.addListener(listener, mainExecutor)
@@ -233,27 +256,27 @@ fun FaceVerificationScreen(
     fun captureCurrentStep(triggeredAutomatically: Boolean = false) {
         if (autoCaptureInFlight && !triggeredAutomatically) return
         val capture = imageCapture ?: run {
-            localError = "Kamera hazır deyil."
+            localError = "Kamera hələ hazır deyil."
             autoCaptureInFlight = false
             return
         }
-        if (currentStepIndex >= 1 && !facePresent) {
-            localError = "Üz tam görünməlidir."
+        if (currentStepIndex >= 0 && !facePresent) {
+            localError = "Üzünüz çərçivənin içində tam görünməlidir."
             autoCaptureInFlight = false
             return
         }
         if (currentStepIndex == 1 && analyzerAvailable && !blinkDetected) {
-            localError = "Əvvəl göz qırpın, sonra kadr çəkin."
+            localError = "İkinci kadrdan əvvəl bir dəfə göz qırpın."
             autoCaptureInFlight = false
             return
         }
         if (currentStepIndex == 2 && analyzerAvailable && !headTurnLeftDetected) {
-            localError = "Əvvəl başınızı sola çevirin, sonra kadr çəkin."
+            localError = "Son kadr üçün başınızı bir qədər sola çevirin."
             autoCaptureInFlight = false
             return
         }
         autoCaptureInFlight = true
-        val file = imageStore.createCardImageFile()
+        val file = imageStore.createFaceImageFile()
         capture.takePicture(
             ImageCapture.OutputFileOptions.Builder(file).build(),
             mainExecutor,
@@ -265,15 +288,11 @@ fun FaceVerificationScreen(
                     } else {
                         capturedPaths.add(file.absolutePath)
                     }
-
+                    localError = ""
                     if (currentStepIndex < steps.lastIndex) {
                         currentStepIndex += 1
                     } else {
-                        onSubmit(
-                            capturedPaths.toList(),
-                            blinkDetected,
-                            headTurnLeftDetected
-                        )
+                        onSubmit(capturedPaths.toList(), blinkDetected, headTurnLeftDetected)
                     }
                 }
 
@@ -308,13 +327,146 @@ fun FaceVerificationScreen(
     }
 
     val step = steps[currentStepIndex.coerceIn(0, steps.lastIndex)]
+    val headline = if (mode == FaceVerificationMode.Enroll) {
+        "Yeni üz profili yaradılır"
+    } else {
+        "Üz doğrulaması"
+    }
+    val subheadline = if (mode == FaceVerificationMode.Enroll) {
+        "Şəkliniz sistemdə yoxdur. Bu canlı skan ilk referans şəkli kimi saxlanacaq."
+    } else {
+        "Məlumatlarınız təsdiqləndi. İndi canlı üz müqayisəsi aparılır."
+    }
 
-    Box(modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF090B11))
+    ) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
-        AtuScanOverlay(
-            progressText = step.title,
-            instruction = step.instruction
-        )
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRect(Color.Black.copy(alpha = 0.42f))
+
+            val frameWidth = size.width * 0.70f
+            val frameHeight = frameWidth * 1.18f
+            val left = (size.width - frameWidth) / 2f
+            val top = (size.height - frameHeight) / 2f - 36.dp.toPx()
+            val radius = 42.dp.toPx()
+
+            drawRoundRect(
+                color = Color.Transparent,
+                topLeft = Offset(left, top),
+                size = Size(frameWidth, frameHeight),
+                cornerRadius = CornerRadius(radius, radius),
+                blendMode = BlendMode.Clear
+            )
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.80f),
+                        AtuWhite.copy(alpha = 0.96f),
+                        AtuPrimary.copy(alpha = 0.88f)
+                    )
+                ),
+                topLeft = Offset(left, top),
+                size = Size(frameWidth, frameHeight),
+                cornerRadius = CornerRadius(radius, radius),
+                style = Stroke(width = 3.dp.toPx())
+            )
+
+            val scanY = top + frameHeight * (0.16f + (0.66f * scanDrift))
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    listOf(Color.Transparent, Color.White, AtuWhite, Color.Transparent)
+                ),
+                start = Offset(left + 24.dp.toPx(), scanY),
+                end = Offset(left + frameWidth - 24.dp.toPx(), scanY),
+                strokeWidth = 4.dp.toPx()
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Surface(
+                color = Color.Black.copy(alpha = 0.36f),
+                shape = RoundedCornerShape(28.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = headline,
+                                color = AtuWhite,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black
+                            )
+                            Text(
+                                text = subheadline,
+                                color = AtuWhite.copy(alpha = 0.80f),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        AtuStatusBadge(
+                            text = "${currentStepIndex + 1}/3",
+                            darkMode = true,
+                            icon = if (mode == FaceVerificationMode.Enroll) {
+                                Icons.Outlined.FaceRetouchingNatural
+                            } else {
+                                Icons.Outlined.Shield
+                            }
+                        )
+                    }
+
+                    if (studentPreviewName.isNotBlank()) {
+                        Text(
+                            text = studentPreviewName,
+                            color = AtuWhite,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (studentPreviewGroup.isNotBlank()) {
+                        Text(
+                            text = "$studentPreviewGroup qrupu",
+                            color = AtuWhite.copy(alpha = 0.74f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                repeat(steps.size) { index ->
+                    AtuStatusBadge(
+                        text = if (index < capturedPaths.size) "Hazır" else "Gözləyir",
+                        darkMode = true,
+                        icon = if (index < capturedPaths.size) {
+                            Icons.Outlined.CheckCircle
+                        } else {
+                            Icons.Outlined.FaceRetouchingNatural
+                        },
+                        success = index < capturedPaths.size
+                    )
+                }
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -325,35 +477,28 @@ fun FaceVerificationScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Surface(
-                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f),
-                shape = RoundedCornerShape(22.dp)
+                color = Color.Black.copy(alpha = 0.34f),
+                shape = RoundedCornerShape(24.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = if (studentPreviewName.isBlank()) "Tələbə" else studentPreviewName,
-                        color = AtuWhite,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black
+                        text = step.title,
+                        color = AtuWhite.copy(alpha = 0.70f),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (studentPreviewGroup.isBlank()) "Üz doğrulaması" else "$studentPreviewGroup qrupu",
-                        color = AtuWhite.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodyMedium
+                        text = step.instruction,
+                        color = AtuWhite,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        repeat(steps.size) { index ->
-                            AtuStatusBadge(
-                                text = "${index + 1}",
-                                darkMode = true,
-                                icon = if (index < capturedPaths.size) Icons.Outlined.CheckCircle else Icons.Outlined.FaceRetouchingNatural,
-                                success = index < capturedPaths.size
-                            )
-                        }
-                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AtuStatusBadge(
                             text = if (facePresent) "Üz göründü" else "Üz gözlənilir",
@@ -362,54 +507,66 @@ fun FaceVerificationScreen(
                             success = facePresent
                         )
                         AtuStatusBadge(
-                            text = if (blinkDetected) "Blink ok" else "Blink",
+                            text = if (blinkDetected) "Blink hazır" else "Blink",
                             darkMode = true,
                             icon = Icons.Outlined.CheckCircle,
                             success = blinkDetected
                         )
                         AtuStatusBadge(
-                            text = if (headTurnLeftDetected) "Sola baxış ok" else "Sola baxın",
+                            text = if (headTurnLeftDetected) "Baxış hazır" else "Sola baxın",
                             darkMode = true,
-                            icon = Icons.Outlined.Cameraswitch,
+                            icon = Icons.Outlined.CheckCircle,
                             success = headTurnLeftDetected
                         )
                     }
                 }
             }
 
-            FloatingActionButton(
-                onClick = { if (!loading) captureCurrentStep() },
-                containerColor = AtuWhite,
-                contentColor = AtuPrimary,
-                shape = CircleShape,
+            Box(
                 modifier = Modifier
-                    .size(84.dp)
+                    .size(88.dp)
                     .graphicsLayer {
-                        val scale = if (autoCaptureInFlight || analyzerAvailable) pulseScale else 1f
-                        scaleX = scale
-                        scaleY = scale
+                        scaleX = if (loading || autoCaptureInFlight) 0.98f else haloPulse
+                        scaleY = if (loading || autoCaptureInFlight) 0.98f else haloPulse
                     }
-                    .atuPressScale()
+                    .background(Color.White.copy(alpha = 0.14f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.Camera, contentDescription = "Kadr çək", modifier = Modifier.size(34.dp))
+                Surface(
+                    onClick = { if (!loading) captureCurrentStep() },
+                    shape = CircleShape,
+                    color = AtuWhite,
+                    modifier = Modifier
+                        .size(74.dp)
+                        .atuPressScale()
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.CameraAlt,
+                            contentDescription = "Kadr çək",
+                            tint = AtuPrimary,
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
+                }
             }
 
             Text(
                 text = when {
-                    loading -> "Üz doğrulanır..."
-                    analyzerAvailable -> "Uyğun hərəkət aşkar ediləndə kadr avtomatik çəkiləcək"
-                    else -> "Cari addımı tamamlamaq üçün düyməyə toxunun"
+                    loading -> "Üz doğrulanır, zəhmət olmasa gözləyin..."
+                    analyzerAvailable -> "Uyğun hərəkət aşkar olunanda kadr avtomatik götürüləcək."
+                    else -> "Canlılıq analizi hazır olmayanda düymə ilə kadr götürə bilərsiniz."
                 },
                 color = AtuWhite,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Medium
             )
 
             if (analyzerAvailable) {
                 Text(
-                    text = "Canlı analiz aktivdir • etibar ${(analyzerConfidence * 100).toInt()}%",
-                    color = AtuWhite.copy(alpha = 0.82f),
+                    text = "Canlılıq analizi aktivdir • etibar ${(analyzerConfidence * 100).toInt()}%",
+                    color = AtuWhite.copy(alpha = 0.76f),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -421,6 +578,7 @@ fun FaceVerificationScreen(
                     darkMode = true
                 )
             }
+
             if (message.isNotBlank() || localError.isNotBlank()) {
                 Text(
                     text = if (localError.isNotBlank()) localError else message,
@@ -431,7 +589,7 @@ fun FaceVerificationScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(AtuWhite, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 )
             }
 
@@ -446,7 +604,7 @@ fun FaceVerificationScreen(
                     modifier = Modifier.weight(1f)
                 )
                 AtuPrimaryButton(
-                    text = if (currentStepIndex == steps.lastIndex) "Yoxla" else "Növbəti kadr",
+                    text = if (currentStepIndex == steps.lastIndex) "Yoxla" else "İndi çək",
                     onClick = { if (!loading) captureCurrentStep() },
                     enabled = !loading && !analyzerAvailable,
                     loading = loading,
@@ -484,7 +642,7 @@ private fun FaceVerificationFeedbackOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.54f)),
+                .background(Color.Black.copy(alpha = 0.54f)),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -506,14 +664,14 @@ private fun FaceVerificationFeedbackOverlay(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = if (success) androidx.compose.ui.graphics.Color(0xFFEAF8EF) else androidx.compose.ui.graphics.Color(0xFFFFF1F1),
+                        color = if (success) Color(0xFFEAF8EF) else Color(0xFFFFF1F1),
                         modifier = Modifier.size(76.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = if (success) Icons.Outlined.Shield else Icons.Outlined.WarningAmber,
                                 contentDescription = null,
-                                tint = if (success) androidx.compose.ui.graphics.Color(0xFF16A34A) else AtuDanger,
+                                tint = if (success) Color(0xFF16A34A) else AtuDanger,
                                 modifier = Modifier.size(38.dp)
                             )
                         }
