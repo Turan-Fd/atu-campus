@@ -112,9 +112,6 @@ fun FaceVerificationScreen(
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { }
     val challengeAnalyzer = remember { FaceChallengeAnalyzer(context.applicationContext) }
 
     val steps = remember {
@@ -129,6 +126,14 @@ fun FaceVerificationScreen(
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var localError by remember { mutableStateOf("") }
     var permissionMissing by remember { mutableStateOf(false) }
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
     var facePresent by remember { mutableStateOf(false) }
     var blinkDetected by remember { mutableStateOf(false) }
     var headTurnLeftDetected by remember { mutableStateOf(false) }
@@ -145,19 +150,26 @@ fun FaceVerificationScreen(
         ),
         label = "pulseScale"
     )
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasCameraPermission = granted
+        permissionMissing = !granted
+        localError = if (granted) "" else "Kamera icazəsi verilmədi."
+    }
 
     LaunchedEffect(Unit) {
-        val granted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) {
+        if (!hasCameraPermission) {
             permissionMissing = true
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    DisposableEffect(lifecycleOwner, previewView) {
+    DisposableEffect(lifecycleOwner, previewView, hasCameraPermission) {
+        if (!hasCameraPermission) {
+            imageCapture = null
+            onDispose { }
+        }
         val providerFuture = ProcessCameraProvider.getInstance(context)
         val listener = Runnable {
             try {
@@ -176,6 +188,7 @@ fun FaceVerificationScreen(
                     capture
                 )
                 imageCapture = capture
+                permissionMissing = false
                 localError = ""
             } catch (_: Exception) {
                 localError = "Ön kamera açılmadı. Cihaz icazələrini yoxlayın."
@@ -217,24 +230,29 @@ fun FaceVerificationScreen(
         }
     }
 
-    fun captureCurrentStep() {
-        if (autoCaptureInFlight) return
+    fun captureCurrentStep(triggeredAutomatically: Boolean = false) {
+        if (autoCaptureInFlight && !triggeredAutomatically) return
         val capture = imageCapture ?: run {
             localError = "Kamera hazır deyil."
+            autoCaptureInFlight = false
             return
         }
         if (currentStepIndex >= 1 && !facePresent) {
             localError = "Üz tam görünməlidir."
+            autoCaptureInFlight = false
             return
         }
         if (currentStepIndex == 1 && analyzerAvailable && !blinkDetected) {
             localError = "Əvvəl göz qırpın, sonra kadr çəkin."
+            autoCaptureInFlight = false
             return
         }
         if (currentStepIndex == 2 && analyzerAvailable && !headTurnLeftDetected) {
             localError = "Əvvəl başınızı sola çevirin, sonra kadr çəkin."
+            autoCaptureInFlight = false
             return
         }
+        autoCaptureInFlight = true
         val file = imageStore.createCardImageFile()
         capture.takePicture(
             ImageCapture.OutputFileOptions.Builder(file).build(),
@@ -284,9 +302,8 @@ fun FaceVerificationScreen(
         }
         val notYetCaptured = capturedPaths.size <= currentStepIndex
         if (readyForCurrentStep && notYetCaptured) {
-            autoCaptureInFlight = true
             delay(650)
-            captureCurrentStep()
+            captureCurrentStep(triggeredAutomatically = true)
         }
     }
 

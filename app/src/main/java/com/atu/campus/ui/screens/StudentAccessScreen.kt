@@ -2,6 +2,7 @@ package com.atu.campus.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +49,8 @@ import com.atu.campus.ui.components.AtuPrimaryButton
 import com.atu.campus.ui.components.AtuScreen
 import com.atu.campus.ui.components.AtuSoftCard
 import com.atu.campus.ui.theme.AtuColors
+import com.atu.campus.ui.theme.AtuPrimary
+import com.atu.campus.ui.theme.AtuWhite
 
 @Composable
 fun StudentAccessScreen(
@@ -58,13 +62,22 @@ fun StudentAccessScreen(
     var showGuide by remember { mutableStateOf(false) }
 
     AtuScreen(verticalArrangement = Arrangement.spacedBy(18.dp)) { palette ->
-        AtuLogoHeader(modifier = Modifier.padding(top = 8.dp))
+        AtuLogoHeader(modifier = Modifier.padding(top = 8.dp), subtitle = "")
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(182.dp)
-                .clip(RoundedCornerShape(30.dp))
+                .height(190.dp)
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            AtuWhite,
+                            AtuColors.SoftPrimary,
+                            AtuColors.SoftPurple
+                        )
+                    )
+                )
         ) {
             Image(
                 painter = painterResource(R.drawable.atu_logo),
@@ -72,15 +85,9 @@ fun StudentAccessScreen(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 26.dp)
-                    .size(112.dp),
-                alpha = 0.92f
+                    .size(116.dp),
+                alpha = 0.94f
             )
-            Surface(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(RoundedCornerShape(30.dp)),
-                color = AtuColors.Surface.copy(alpha = 0.42f)
-            ) {}
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -96,7 +103,8 @@ fun StudentAccessScreen(
                 Text(
                     text = "Hesabınıza daxil olaraq universitet həyatınızı asanlaşdırın.",
                     color = palette.textSecondary,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth(0.68f)
                 )
             }
         }
@@ -148,7 +156,7 @@ fun StudentAccessScreen(
             )
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = palette.surface,
                 border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
             ) {
@@ -161,19 +169,19 @@ fun StudentAccessScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .padding(2.dp),
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(AtuColors.SoftPrimary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = palette.primary)
+                        Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = AtuPrimary)
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "Biometrik giriş",
                             color = palette.text,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             "Üz ilə təhlükəsiz təsdiq",
@@ -240,7 +248,7 @@ fun StudentAccessScreen(
                     )
                     AtuInlineNote(
                         icon = Icons.Outlined.Info,
-                        text = "Nömrəni vəsiqənin ön hissəsindəki “Tələbə vəsiqəsi №” sahəsindən daxil edin."
+                        text = "Nömrəni vəsiqənin ön hissəsindəki \"Tələbə vəsiqəsi №\" sahəsindən daxil edin."
                     )
                 }
             }

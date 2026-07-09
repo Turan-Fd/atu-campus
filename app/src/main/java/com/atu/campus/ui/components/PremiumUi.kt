@@ -210,7 +210,7 @@ fun AtuAnimatedContentWrapper(
 fun AtuScreen(
     darkMode: Boolean = false,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(AtuSpacing.xl),
     gradientBackground: Boolean = true,
     content: @Composable ColumnScope.(AtuPalette) -> Unit
@@ -226,7 +226,7 @@ fun AtuScreen(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            palette.softPrimary.copy(alpha = if (darkMode) 0.55f else 0.72f),
+                            palette.softPrimary.copy(alpha = if (darkMode) 0.30f else 0.78f),
                             Color.Transparent
                         )
                     ),
@@ -236,7 +236,7 @@ fun AtuScreen(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            AtuColors.SoftPurple.copy(alpha = if (darkMode) 0.22f else 0.55f),
+                            AtuColors.SoftPurple.copy(alpha = if (darkMode) 0.14f else 0.48f),
                             Color.Transparent
                         )
                     ),
@@ -269,10 +269,10 @@ fun AtuPremiumCard(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = if (darkMode) 0.dp else 8.dp,
+                elevation = if (darkMode) 0.dp else 7.dp,
                 shape = RoundedCornerShape(radius),
-                ambientColor = Color(0x14000000),
-                spotColor = Color(0x12000000)
+                ambientColor = Color(0x0F2B1230),
+                spotColor = Color(0x122B1230)
             ),
         shape = RoundedCornerShape(radius),
         colors = CardDefaults.cardColors(containerColor = palette.surface),
@@ -328,9 +328,9 @@ fun AtuHeroCard(
             .background(
                 Brush.linearGradient(
                     listOf(
-                        if (darkMode) palette.softPrimary else Color(0xFFFFFDFE),
-                        if (darkMode) palette.surface else Color(0xFFF9F6FB),
-                        if (darkMode) palette.background else Color(0xFFF3F0FA)
+                        if (darkMode) palette.softPrimary else Color(0xFFFFFFFF),
+                        if (darkMode) palette.surface else Color(0xFFFFF7FB),
+                        if (darkMode) palette.background else Color(0xFFF4F1FF)
                     )
                 )
             )
@@ -394,11 +394,13 @@ fun AtuLogoHeader(
                 fontWeight = FontWeight.SemiBold,
                 lineHeight = MaterialTheme.typography.titleMedium.lineHeight
             )
-            Text(
-                text = subtitle,
-                color = AtuTextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    color = AtuTextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -448,7 +450,7 @@ fun AtuSearchBar(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     darkMode: Boolean = false,
-    placeholder: String = "Xidmət, kurs, xəbər axtar...",
+    placeholder: String = "Xidmət, xəbər və ya kurs axtar...",
     trailingIcon: ImageVector? = null,
     onTrailingClick: (() -> Unit)? = null,
     readOnly: Boolean = false
@@ -487,12 +489,12 @@ fun AtuSearchBar(
             }
         } else null,
         singleLine = true,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = palette.surface,
             unfocusedContainerColor = palette.surface,
             disabledContainerColor = palette.surface,
-            focusedBorderColor = palette.border,
+            focusedBorderColor = palette.primary.copy(alpha = 0.28f),
             unfocusedBorderColor = palette.border,
             disabledBorderColor = palette.border,
             focusedTextColor = palette.text,

@@ -214,14 +214,14 @@ fun AppNavigation(
             Screen.AdminLogin -> AdminLoginScreen(
                 title = if (pendingAdminTarget == PendingAdminTarget.News) "News Admin" else "SMS Admin",
                 subtitle = if (pendingAdminTarget == PendingAdminTarget.News) {
-                    "ATU xÉbÉr, elan vÉ tÉdbirlÉri idarÉ edin."
+                    "ATU xəbər, elan və tədbirləri idarə edin."
                 } else {
-                    "TÉlÉbÉlÉri axtarÄ±n vÉ onlara birbaÅa bildiriÅ gÃ¶ndÉrin."
+                    "Tələbələri axtarın və onlara birbaşa bildiriş göndərin."
                 },
                 ctaText = if (pendingAdminTarget == PendingAdminTarget.News) {
-                    "News Admin-É daxil ol"
+                    "News Admin-ə daxil ol"
                 } else {
-                    "SMS Admin-É daxil ol"
+                    "SMS Admin-ə daxil ol"
                 },
                 message = adminLoginMessage,
                 loading = adminLoginLoading,
