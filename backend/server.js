@@ -24,6 +24,7 @@ const campusMessagesPath = path.join(dataDirectory, "campus-chat-messages.json")
 const campusDeviceTokensPath = path.join(dataDirectory, "campus-device-tokens.json");
 const faceAuthSessionsPath = path.join(dataDirectory, "face-auth-sessions.json");
 const faceAuthAuditPath = path.join(dataDirectory, "face-auth-audit.json");
+const activeStudentSessionsPath = path.join(dataDirectory, "active-student-sessions.json");
 const NEWS_ADMIN_ACCESS_CODE = process.env.ATU_NEWS_ADMIN_CODE || "1970103";
 const SMS_ADMIN_ACCESS_CODE = process.env.ATU_SMS_ADMIN_CODE || "899913";
 const ADMIN_PASSWORD = process.env.ATU_NEWS_ADMIN_PASSWORD || "ATU@1970";
@@ -187,6 +188,14 @@ function appendFaceAuthAudit(entry) {
   writeJsonFile(faceAuthAuditPath, items.slice(0, 5000));
 }
 
+function readActiveStudentSessions() {
+  return readJsonFile(activeStudentSessionsPath, []);
+}
+
+function writeActiveStudentSessions(items) {
+  writeJsonFile(activeStudentSessionsPath, items);
+}
+
 function readChatRooms() {
   return readJsonFile(campusRoomsPath, [officialRoom()]);
 }
@@ -236,6 +245,34 @@ function writeStudentPhotoManifest() {
   writeJsonFile(studentPhotosManifestPath, payload);
 }
 
+function findLocalEnrolledFaceReference(workNumber) {
+  const normalized = normalizeWorkNumber(workNumber);
+  const extensions = [".jpg", ".jpeg", ".png", ".webp"];
+  for (const extension of extensions) {
+    const filePath = path.join(enrolledFaceDirectory, `${normalized}${extension}`);
+    if (fs.existsSync(filePath)) return filePath;
+  }
+  return "";
+}
+
+function ensureStudentPhotoReference(workNumber) {
+  const normalized = normalizeWorkNumber(workNumber);
+  const current = photosByWorkNumber.get(normalized);
+  if (current) {
+    if (/^https?:\/\//i.test(current)) return current;
+    if (fs.existsSync(current)) return current;
+  }
+
+  const localReference = findLocalEnrolledFaceReference(normalized);
+  if (localReference) {
+    photosByWorkNumber.set(normalized, localReference);
+    writeStudentPhotoManifest();
+    return localReference;
+  }
+
+  return "";
+}
+
 async function uploadStudentPhotoToCloudinary(workNumber, base64Data, mimeType = "image/jpeg") {
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
     return "";
@@ -281,6 +318,10 @@ async function uploadStudentPhotoToCloudinary(workNumber, base64Data, mimeType =
 async function persistStudentReferencePhoto(studentId, base64Data, mimeType = "image/jpeg") {
   const workNumber = normalizeWorkNumber(studentId);
   if (!base64Data || workNumber === "0") return "";
+  const existingReference = ensureStudentPhotoReference(workNumber);
+  if (existingReference) {
+    return publicStudentPhotoPath(workNumber);
+  }
 
   let reference = "";
   try {
@@ -302,7 +343,7 @@ async function persistStudentReferencePhoto(studentId, base64Data, mimeType = "i
 }
 
 function publicStudentPhotoPath(workNumber) {
-  const reference = photosByWorkNumber.get(normalizeWorkNumber(workNumber));
+  const reference = ensureStudentPhotoReference(workNumber);
   if (!reference) return "";
   return /^https?:\/\//i.test(reference)
     ? reference
@@ -392,7 +433,7 @@ function contentTypeFromExtension(filePath) {
 }
 
 async function readReferenceImagePayload(studentId) {
-  const reference = photosByWorkNumber.get(normalizeWorkNumber(studentId));
+  const reference = ensureStudentPhotoReference(studentId);
   if (!reference) return null;
 
   if (/^https?:\/\//i.test(reference)) {
@@ -416,6 +457,44 @@ async function readReferenceImagePayload(studentId) {
     base64: fs.readFileSync(reference).toString("base64"),
     mimeType: contentTypeFromExtension(reference)
   };
+}
+
+function registerActiveStudentSession(studentId, deviceId) {
+  const now = Date.now();
+  const normalizedStudentId = normalizeWorkNumber(studentId);
+  const resolvedDeviceId = String(deviceId || "").trim() || `device_${crypto.randomUUID()}`;
+  const sessions = readActiveStudentSessions().filter(item => item.studentId !== normalizedStudentId);
+  const sessionToken = crypto.randomUUID();
+  const entry = {
+    studentId: normalizedStudentId,
+    deviceId: resolvedDeviceId,
+    authSessionToken: sessionToken,
+    createdAt: now,
+    lastSeenAt: now
+  };
+  sessions.unshift(entry);
+  writeActiveStudentSessions(sessions.slice(0, 10000));
+  return entry;
+}
+
+function getActiveStudentSession(studentId) {
+  const normalizedStudentId = normalizeWorkNumber(studentId);
+  return readActiveStudentSessions().find(item => item.studentId === normalizedStudentId) || null;
+}
+
+function touchActiveStudentSession(studentId, authSessionToken) {
+  const normalizedStudentId = normalizeWorkNumber(studentId);
+  const sessions = readActiveStudentSessions();
+  const index = sessions.findIndex(
+    item => item.studentId === normalizedStudentId && item.authSessionToken === authSessionToken
+  );
+  if (index < 0) return null;
+  sessions[index] = {
+    ...sessions[index],
+    lastSeenAt: Date.now()
+  };
+  writeActiveStudentSessions(sessions);
+  return sessions[index];
 }
 
 async function runFaceVerificationInference({ session, captures, challengeMeta }) {
@@ -1318,6 +1397,7 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/auth/face/complete") {
     const payload = await readBody(request);
     const sessionId = String(payload.sessionId || "").trim();
+    const deviceId = String(payload.deviceId || "").trim();
     const captures = Array.isArray(payload.captures) ? payload.captures.filter(Boolean) : [];
     const challengeMeta = payload.challengeMeta && typeof payload.challengeMeta === "object"
       ? payload.challengeMeta
@@ -1423,6 +1503,7 @@ const server = http.createServer(async (request, response) => {
       if (session.mode === "ENROLL" && captures[0]) {
         await persistStudentReferencePhoto(session.studentId, captures[0], "image/jpeg");
       }
+      const activeSession = registerActiveStudentSession(session.studentId, deviceId);
 
       return sendJson(response, 200, {
         success: true,
@@ -1435,6 +1516,8 @@ const server = http.createServer(async (request, response) => {
         captureQualityBand: String(inference.captureQualityBand || "good"),
         retryable: false,
         student: student ? publicStudent(student) : null,
+        authSessionToken: activeSession.authSessionToken,
+        sessionDeviceId: activeSession.deviceId,
         session: {
           id: sessionId,
           attempts: updatedSession?.attempts || 1,
@@ -1459,6 +1542,51 @@ const server = http.createServer(async (request, response) => {
         message: "Üz doğrulaması servisində xəta baş verdi."
       });
     }
+  }
+
+  if (request.method === "POST" && url.pathname === "/auth/session/status") {
+    const payload = await readBody(request);
+    const studentId = normalizeWorkNumber(payload.studentId);
+    const authSessionToken = String(payload.authSessionToken || "").trim();
+    const deviceId = String(payload.deviceId || "").trim();
+
+    if (studentId === "0" || !authSessionToken) {
+      return sendJson(response, 400, {
+        success: false,
+        active: false,
+        title: "Sessiya bitdi",
+        message: "Sessiya məlumatları natamamdır."
+      });
+    }
+
+    const activeSession = getActiveStudentSession(studentId);
+    if (!activeSession) {
+      return sendJson(response, 200, {
+        success: true,
+        active: false,
+        title: "Sessiya bitdi",
+        message: "Hesabın aktiv sessiyası tapılmadı. Yenidən daxil olun."
+      });
+    }
+
+    const sameSession =
+      activeSession.authSessionToken === authSessionToken &&
+      (!deviceId || activeSession.deviceId === deviceId);
+
+    if (!sameSession) {
+      return sendJson(response, 200, {
+        success: true,
+        active: false,
+        title: "Hesab başqa cihazda açıldı",
+        message: "Bu hesab başqa cihazda yenidən açıldığı üçün cari cihazdan çıxarıldınız."
+      });
+    }
+
+    touchActiveStudentSession(studentId, authSessionToken);
+    return sendJson(response, 200, {
+      success: true,
+      active: true
+    });
   }
 
   if (request.method === "POST" && url.pathname === "/verify-card") {

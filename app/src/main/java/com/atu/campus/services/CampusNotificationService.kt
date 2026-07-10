@@ -83,6 +83,24 @@ class CampusNotificationService(private val context: Context) {
         manager.notify(item.id.hashCode(), notification)
     }
 
+    fun showSecurityAlert(title: String, body: String) {
+        ensureChannel()
+        val largeIcon = BitmapFactory.decodeResource(context.resources, R.drawable.atu_logo)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_atu)
+            .setLargeIcon(largeIcon)
+            .setColor(0xFFA80F3E.toInt())
+            .setSubText("ATU Campus Security")
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setAutoCancel(true)
+            .build()
+        manager.notify((title + body).hashCode(), notification)
+    }
+
     private fun pendingIntent(item: AtuNews): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP

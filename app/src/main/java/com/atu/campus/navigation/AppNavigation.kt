@@ -20,6 +20,8 @@ import com.atu.campus.services.BackendStudentService
 import com.atu.campus.services.CameraImageStore
 import com.atu.campus.services.CampusCommunityService
 import com.atu.campus.services.CampusContentService
+import com.atu.campus.services.CampusNotificationService
+import com.atu.campus.services.DeviceIdentityStore
 import com.atu.campus.services.FcmTokenSyncService
 import com.atu.campus.services.NotificationSyncScheduler
 import com.atu.campus.ui.screens.AdminLoginScreen
@@ -54,6 +56,8 @@ fun AppNavigation(
     val communityService = remember { CampusCommunityService(context.applicationContext) }
     val notificationScheduler = remember { NotificationSyncScheduler(context.applicationContext) }
     val fcmTokenSyncService = remember { FcmTokenSyncService(context.applicationContext) }
+    val deviceIdentityStore = remember { DeviceIdentityStore(context.applicationContext) }
+    val notificationService = remember { CampusNotificationService(context.applicationContext) }
     val coroutineScope = rememberCoroutineScope()
 
     var currentScreen by remember { mutableStateOf(Screen.Splash) }
@@ -171,7 +175,8 @@ fun AppNavigation(
                             sessionId = faceAuthSessionId,
                             captures = capturePayloads,
                             blinkDetected = blinkDetected,
-                            headTurnLeftDetected = headTurnLeftDetected
+                            headTurnLeftDetected = headTurnLeftDetected,
+                            deviceId = deviceIdentityStore.getDeviceId()
                         )
                         faceAuthLoading = false
                         if (result.success && result.verified && result.profile != null) {
@@ -370,6 +375,34 @@ fun AppNavigation(
             }
         } else {
             notificationScheduler.cancel()
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(profile?.id, profile?.authSessionToken, profile?.sessionDeviceId) {
+        val currentProfile = profile ?: return@LaunchedEffect
+        val sessionToken = currentProfile.authSessionToken
+        if (sessionToken.isBlank()) return@LaunchedEffect
+
+        while (true) {
+            delay(4000)
+            val result = backendStudentService.checkSessionStatus(
+                studentId = currentProfile.id,
+                authSessionToken = sessionToken,
+                deviceId = currentProfile.sessionDeviceId.ifBlank { deviceIdentityStore.getDeviceId() }
+            )
+            if (result.success && !result.active) {
+                notificationService.showSecurityAlert(
+                    title = result.title.ifBlank { "Sessiya sonlandırıldı" },
+                    body = result.message.ifBlank { "Bu hesab başqa cihazda açıldığı üçün cari cihazdan çıxarıldınız." }
+                )
+                coroutineScope.launch { fcmTokenSyncService.unregisterStoredToken() }
+                notificationScheduler.cancel()
+                storage.clearProfile()
+                profile = null
+                accessMessage = result.message.ifBlank { "Bu hesab başqa cihazda açıldığı üçün sessiyanız bağlandı." }
+                currentScreen = Screen.StudentAccess
+                break
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Icon
@@ -77,10 +77,9 @@ fun StudentAccessScreen(
     }
 
     AtuScreen(verticalArrangement = Arrangement.spacedBy(18.dp)) { palette ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
                 .clip(RoundedCornerShape(34.dp))
                 .background(
                     Brush.linearGradient(
@@ -91,59 +90,45 @@ fun StudentAccessScreen(
                         )
                     )
                 )
-                .padding(24.dp)
+                .padding(horizontal = 22.dp, vertical = 24.dp)
         ) {
-            Column(
-                modifier = Modifier.align(Alignment.TopStart),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+            val compact = maxWidth < 360.dp
+            val heroHeight = if (compact) 208.dp else 236.dp
+            val logoSize = if (compact) 98.dp else 124.dp
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(heroHeight)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = AtuWhite.copy(alpha = 0.72f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth(if (compact) 0.78f else 0.72f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Fingerprint,
-                            contentDescription = null,
-                            tint = AtuPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Təhlükəsiz tələbə girişi",
-                            color = palette.text,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    Text(
+                        text = "Xoş gəlmisiniz",
+                        color = palette.text,
+                        style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = "Tələbə nömrənizi və FIN kodunuzu daxil edin. Uyğunluq təsdiqləndikdən sonra üz doğrulaması ilə davam edəcəksiniz.",
+                        color = palette.textSecondary,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
 
-                Text(
-                    text = "Xoş gəlmisiniz!",
-                    color = palette.text,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = "Tələbə nömrənizi və FIN kodunuzu daxil edin. Uyğunluq təsdiqləndikdən sonra üz doğrulaması ilə davam edəcəksiniz.",
-                    color = palette.textSecondary,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth(0.74f)
+                Image(
+                    painter = painterResource(R.drawable.atu_logo),
+                    contentDescription = "ATU",
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(logoSize),
+                    alpha = 0.94f
                 )
             }
-
-            Image(
-                painter = painterResource(R.drawable.atu_logo),
-                contentDescription = "ATU",
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(122.dp),
-                alpha = 0.92f
-            )
         }
 
         AtuSoftCard(radius = 28.dp) {
@@ -195,14 +180,12 @@ fun StudentAccessScreen(
                 )
             }
 
-            AtuInlineNote(
-                icon = Icons.Outlined.Lock,
-                text = if (adminMode) {
-                    "Administrator girişi aşkarlandı. Növbəti addımda parol yoxlaması açılacaq."
-                } else {
-                    "FIN kodu yalnız bu tələbə nömrəsi ilə uyğunluğu yoxlamaq üçün istifadə olunur. Doğrulama uğurlu olsa, üz skanı açılacaq."
-                }
-            )
+            if (adminMode) {
+                AtuInlineNote(
+                    icon = Icons.Outlined.Lock,
+                    text = "Administrator girişi aşkarlandı. Növbəti addımda parol yoxlaması açılacaq."
+                )
+            }
 
             AtuPrimaryButton(
                 text = if (adminMode) "Davam et" else "Üz doğrulamasına keç",
@@ -239,7 +222,7 @@ fun StudentAccessScreen(
                             .background(AtuColors.SoftPrimary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = AtuPrimary)
+                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = AtuPrimary)
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -259,14 +242,14 @@ fun StudentAccessScreen(
         }
 
         AnimatedContent(targetState = message, label = "accessMessage") { current ->
-            AtuInlineNote(
-                icon = Icons.Outlined.Lock,
-                text = if (current.isNotBlank()) {
-                    current
-                } else {
-                    "Yeni tələbənin referans şəkli yoxdursa, ilk uğurlu canlı üz skanı profil şəkli kimi saxlanacaq."
-                }
-            )
+            if (current.isNotBlank()) {
+                AtuInlineNote(
+                    icon = Icons.Outlined.Lock,
+                    text = current
+                )
+            } else {
+                Spacer(modifier = Modifier.height(0.dp))
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))

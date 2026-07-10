@@ -53,6 +53,13 @@ data class FaceAuthCompleteResult(
     val retryable: Boolean = true
 )
 
+data class AuthSessionStatusResult(
+    val success: Boolean,
+    val active: Boolean,
+    val message: String = "",
+    val title: String = ""
+)
+
 class BackendStudentService(
     context: Context
 ) {
@@ -169,10 +176,12 @@ class BackendStudentService(
         sessionId: String,
         captures: List<String>,
         blinkDetected: Boolean,
-        headTurnLeftDetected: Boolean
+        headTurnLeftDetected: Boolean,
+        deviceId: String
     ): FaceAuthCompleteResult = withContext(Dispatchers.IO) {
         val payload = JSONObject()
             .put("sessionId", sessionId)
+            .put("deviceId", deviceId)
             .put("captures", JSONArray(captures))
             .put(
                 "challengeMeta",
@@ -188,7 +197,11 @@ class BackendStudentService(
                 return@withContext FaceAuthCompleteResult(
                     success = true,
                     verified = true,
-                    profile = student?.toProfile(baseUrl),
+                    profile = student?.toProfile(
+                        baseUrl = baseUrl,
+                        authSessionToken = response.optString("authSessionToken"),
+                        sessionDeviceId = response.optString("sessionDeviceId", deviceId)
+                    ),
                     matchScore = response.optDouble("matchScore", 0.0),
                     livenessScore = response.optDouble("livenessScore", 0.0),
                     message = response.optString("message"),
@@ -225,7 +238,47 @@ class BackendStudentService(
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
-    private fun JSONObject.toProfile(baseUrl: String): StudentProfile {
+    suspend fun checkSessionStatus(
+        studentId: String,
+        authSessionToken: String,
+        deviceId: String
+    ): AuthSessionStatusResult = withContext(Dispatchers.IO) {
+        if (studentId.isBlank() || authSessionToken.isBlank() || deviceId.isBlank()) {
+            return@withContext AuthSessionStatusResult(
+                success = false,
+                active = false,
+                message = "Sessiya məlumatları natamamdır.",
+                title = "Sessiya bitdi"
+            )
+        }
+
+        val payload = JSONObject()
+            .put("studentId", studentId)
+            .put("authSessionToken", authSessionToken)
+            .put("deviceId", deviceId)
+
+        for (baseUrl in backendConfigStore.resolveBaseUrls()) {
+            val response = postJson(baseUrl, "/auth/session/status", payload) ?: continue
+            return@withContext AuthSessionStatusResult(
+                success = response.optBoolean("success", false),
+                active = response.optBoolean("active", false),
+                message = response.optString("message"),
+                title = response.optString("title")
+            )
+        }
+
+        AuthSessionStatusResult(
+            success = false,
+            active = true,
+            message = "Sessiya vəziyyətini yoxlamaq mümkün olmadı."
+        )
+    }
+
+    private fun JSONObject.toProfile(
+        baseUrl: String,
+        authSessionToken: String = "",
+        sessionDeviceId: String = ""
+    ): StudentProfile {
         val photoPath = optString("photoPath")
         return StudentProfile(
             surname = optString("surname"),
@@ -246,7 +299,9 @@ class BackendStudentService(
             course = optString("course"),
             studyForm = optString("studyForm"),
             educationLevel = optString("educationLevel"),
-            status = optString("status")
+            status = optString("status"),
+            authSessionToken = authSessionToken,
+            sessionDeviceId = sessionDeviceId
         )
     }
 

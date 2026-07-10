@@ -22,7 +22,9 @@ class LocalProfileStorage(context: Context) {
             course = preferences.getString(KEY_COURSE, "").orEmpty(),
             studyForm = preferences.getString(KEY_STUDY_FORM, "").orEmpty(),
             educationLevel = preferences.getString(KEY_EDUCATION_LEVEL, "").orEmpty(),
-            status = preferences.getString(KEY_STATUS, "").orEmpty()
+            status = preferences.getString(KEY_STATUS, "").orEmpty(),
+            authSessionToken = preferences.getString(KEY_AUTH_SESSION_TOKEN, "").orEmpty(),
+            sessionDeviceId = preferences.getString(KEY_SESSION_DEVICE_ID, "").orEmpty()
         )
     }
 
@@ -43,6 +45,8 @@ class LocalProfileStorage(context: Context) {
             .putString(KEY_STUDY_FORM, profile.studyForm)
             .putString(KEY_EDUCATION_LEVEL, profile.educationLevel)
             .putString(KEY_STATUS, profile.status)
+            .putString(KEY_AUTH_SESSION_TOKEN, profile.authSessionToken)
+            .putString(KEY_SESSION_DEVICE_ID, profile.sessionDeviceId)
             .apply()
     }
 
@@ -66,5 +70,7 @@ class LocalProfileStorage(context: Context) {
         const val KEY_STUDY_FORM = "study_form"
         const val KEY_EDUCATION_LEVEL = "education_level"
         const val KEY_STATUS = "status"
+        const val KEY_AUTH_SESSION_TOKEN = "auth_session_token"
+        const val KEY_SESSION_DEVICE_ID = "session_device_id"
     }
 }

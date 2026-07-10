@@ -15,7 +15,9 @@ data class StudentProfile(
     val course: String = "",
     val studyForm: String = "",
     val educationLevel: String = "",
-    val status: String = ""
+    val status: String = "",
+    val authSessionToken: String = "",
+    val sessionDeviceId: String = ""
 ) {
     val fullName: String
         get() = "$name $surname".trim()
