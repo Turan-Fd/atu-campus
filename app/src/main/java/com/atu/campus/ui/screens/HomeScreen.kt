@@ -177,8 +177,10 @@ private enum class CampusTab(
     Search("search", "Axtarış", Icons.Outlined.Search),
     Assistant("assistant", "Süni Zəka", Icons.Outlined.AutoAwesome),
     Chat("chat", "Mesajlar", Icons.Outlined.ChatBubbleOutline),
-    Profile("profile", "Profil", Icons.Outlined.Person),
-    Pass("pass", "Pass", Icons.Outlined.CreditCard, bottomBarVisible = false)
+    Profile("profile", "Parametrlər", Icons.Outlined.Settings),
+    Pass("pass", "ATU Pass", Icons.Outlined.CreditCard, bottomBarVisible = false),
+    Schedule("schedule", "Dərslər", Icons.Outlined.CalendarMonth, bottomBarVisible = false),
+    Payments("payments", "Ödənişlər", Icons.Outlined.CreditCard, bottomBarVisible = false)
 }
 
 private data class CampusModule(
@@ -597,6 +599,7 @@ fun HomeScreen(
                 onFilterChange = { selectedFilter = it },
                 onNewsClick = { selectedNews = it },
                 darkMode = darkMode,
+                showBackButton = true,
                 onBack = { showSearchScreen = false },
                 modifier = Modifier.padding(padding)
             )
@@ -635,6 +638,7 @@ fun HomeScreen(
             showProfileScreen -> ProfileScreen(
                 student = student,
                 darkMode = darkMode,
+                onReset = onReset,
                 onBack = { showProfileScreen = false },
                 modifier = Modifier.padding(padding)
             )
@@ -683,6 +687,7 @@ fun HomeScreen(
                             onFilterChange = { selectedFilter = it },
                             onNewsClick = { selectedNews = it },
                             darkMode = darkMode,
+                            showBackButton = false,
                             onBack = {},
                             modifier = Modifier.padding(padding)
                         )
@@ -708,14 +713,15 @@ fun HomeScreen(
                         )
 
                         CampusTab.Pass -> PassTab(student, darkMode, Modifier.padding(padding))
-                        CampusTab.Profile -> ProfileScreen(
+                        CampusTab.Schedule -> ScheduleTab(student, darkMode, Modifier.padding(padding))
+                        CampusTab.Payments -> PaymentsTab(student, darkMode, Modifier.padding(padding))
+                        CampusTab.Profile -> SettingsTab(
                             student = student,
                             darkMode = darkMode,
                             notificationsEnabled = notificationsEnabled,
                             onDarkModeChange = { darkMode = it },
                             onNotificationsChange = { notificationsEnabled = it },
                             onReset = onReset,
-                            onBack = {},
                             modifier = Modifier.padding(padding)
                         )
                     }
@@ -777,13 +783,13 @@ private fun HomeTab(
 ) {
     val quickActions = listOf(
         com.atu.campus.ui.components.AtuQuickActionItem("Xəbərlər", Icons.Outlined.Newspaper) { onOpenSearch() },
-        com.atu.campus.ui.components.AtuQuickActionItem("Dərslərim", Icons.Outlined.CalendarMonth) { onSelectModule(CampusTab.Pass) },
-        com.atu.campus.ui.components.AtuQuickActionItem("Təqvim", Icons.Outlined.Event) { onSelectModule(CampusTab.Pass) },
-        com.atu.campus.ui.components.AtuQuickActionItem("Ödənişlər", Icons.Outlined.CreditCard) { onSelectModule(CampusTab.Pass) },
+        com.atu.campus.ui.components.AtuQuickActionItem("Dərslərim", Icons.Outlined.CalendarMonth) { onSelectModule(CampusTab.Schedule) },
+        com.atu.campus.ui.components.AtuQuickActionItem("Təqvim", Icons.Outlined.Event) { onSelectModule(CampusTab.Schedule) },
+        com.atu.campus.ui.components.AtuQuickActionItem("Ödənişlər", Icons.Outlined.CreditCard) { onSelectModule(CampusTab.Payments) },
         com.atu.campus.ui.components.AtuQuickActionItem("Kitabxana", Icons.Outlined.Map) { onOpenSearch() },
-        com.atu.campus.ui.components.AtuQuickActionItem("Qiymətlər", Icons.Outlined.Badge) { onSelectModule(CampusTab.Profile) },
-        com.atu.campus.ui.components.AtuQuickActionItem("Tədris planı", Icons.Outlined.Edit) { onSelectModule(CampusTab.Profile) },
-        com.atu.campus.ui.components.AtuQuickActionItem("Daha çox", Icons.Outlined.Settings) { onSelectModule(CampusTab.Chat) }
+        com.atu.campus.ui.components.AtuQuickActionItem("Qiymətlər", Icons.Outlined.Badge) { onSelectModule(CampusTab.Schedule) },
+        com.atu.campus.ui.components.AtuQuickActionItem("Tədris planı", Icons.Outlined.Edit) { onSelectModule(CampusTab.Schedule) },
+        com.atu.campus.ui.components.AtuQuickActionItem("Parametrlər", Icons.Outlined.Settings) { onSelectModule(CampusTab.Profile) }
     )
     val campusModules = listOf(
         CampusModule("ATU Pass", "Giriş icazəsi və turniket tarixçəsi", Icons.Outlined.CreditCard, AtuPrimary, CampusTab.Pass),
@@ -832,7 +838,7 @@ private fun HomeTab(
         item { SearchEntryRow(darkMode = darkMode, onClick = onOpenSearch) }
         item { AtuPassCard(student = student, darkMode = darkMode, approved = true) }
         item { com.atu.campus.ui.components.AtuQuickActionGrid(items = quickActions, darkMode = darkMode) }
-        item { AtuSectionHeader("Aktiv xidmətlər", action = "Hamısına bax", darkMode = darkMode, onActionClick = { onSelectModule(CampusTab.Chat) }) }
+        item { AtuSectionHeader("Aktiv xidmətlər", action = "Hamısına bax", darkMode = darkMode, onActionClick = { onSelectModule(CampusTab.Schedule) }) }
         items(campusModules) { module ->
             HomeModuleStackCard(module, darkMode) { module.action?.let(onSelectModule) }
         }
@@ -849,7 +855,7 @@ private fun HomeTab(
                 )
             }
         }
-        item { AtuSectionHeader("Bugünkü dərslər", action = "Hamısına bax", darkMode = darkMode, onActionClick = { onSelectModule(CampusTab.Pass) }) }
+        item { AtuSectionHeader("Bugünkü dərslər", action = "Hamısına bax", darkMode = darkMode, onActionClick = { onSelectModule(CampusTab.Schedule) }) }
         item {
             AtuScheduleCard(
                 lessonName = student.specialty.ifBlank { "Kompüter mühəndisliyi" },
@@ -991,6 +997,7 @@ private fun SearchScreen(
     onFilterChange: (String) -> Unit,
     onNewsClick: (AtuNews) -> Unit,
     darkMode: Boolean,
+    showBackButton: Boolean = true,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1007,9 +1014,11 @@ private fun SearchScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HeaderIconButton(Icons.Outlined.ArrowBack, darkMode, onBack)
+                if (showBackButton) {
+                    HeaderIconButton(Icons.Outlined.ArrowBack, darkMode, onBack)
+                }
                 Text(
-                    text = "Axtarı",
+                    text = "Axtarış",
                     color = atuPalette(darkMode).text,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Black
@@ -1031,8 +1040,8 @@ private fun SearchScreen(
             loading -> item { AtuSkeletonLoader(darkMode = darkMode) }
             news.isEmpty() -> item {
                 AtuEmptyState(
-                    title = "Mzmun tapılmadı",
-                    subtitle = "Bu axtarıa uyun xbr, elan v ya tdbir yoxdur.",
+                    title = "Məzmun tapılmadı",
+                    subtitle = "Bu axtarışa uyğun xəbər, elan və ya tədbir yoxdur.",
                     icon = Icons.Outlined.Search,
                     darkMode = darkMode
                 )
@@ -1040,7 +1049,7 @@ private fun SearchScreen(
 
             else -> {
                 item {
-                    AtuSectionHeader("Seçilmi nəticə", action = "${news.size} nəticə", darkMode = darkMode)
+                    AtuSectionHeader("Seçilmiş nəticə", action = "${news.size} nəticə", darkMode = darkMode)
                     Spacer(Modifier.height(10.dp))
                     AtuNewsCard(news.first(), onClick = { onNewsClick(news.first()) }, darkMode = darkMode, featured = true)
                 }
@@ -2092,6 +2101,78 @@ private fun AccessLogRow(log: AccessLog, darkMode: Boolean) {
 }
 
 @Composable
+private fun ScheduleTab(student: StudentProfile, darkMode: Boolean, modifier: Modifier = Modifier) {
+    val lessons = listOf(
+        Triple(student.specialty.ifBlank { "Kompüter mühəndisliyi" }, "10:00 - 11:30", "A204"),
+        Triple("Rəqəmsal sistemlər", "12:00 - 13:20", "B115"),
+        Triple("Verilənlər bazası", "14:10 - 15:30", "Lab 3")
+    )
+    LazyColumn(
+        modifier = modifier.fillMaxSize().background(atuPalette(darkMode).background),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item { AtuSectionHeader("Dərslərim", subtitle = "Bugünkü və yaxın tədris blokları", darkMode = darkMode) }
+        items(lessons.size) { index ->
+            val lesson = lessons[index]
+            AtuScheduleCard(lessonName = lesson.first, time = lesson.second, room = lesson.third, darkMode = darkMode)
+        }
+        item {
+            AtuPremiumCard(darkMode = darkMode) {
+                Text("Həftəlik görünüş", color = atuPalette(darkMode).text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                Spacer(Modifier.height(8.dp))
+                Text("B.e.  3 dərs", color = atuPalette(darkMode).muted, style = MaterialTheme.typography.bodyMedium)
+                Text("Ç.a.  2 dərs", color = atuPalette(darkMode).muted, style = MaterialTheme.typography.bodyMedium)
+                Text("Ç.   1 laboratoriya", color = atuPalette(darkMode).muted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentsTab(student: StudentProfile, darkMode: Boolean, modifier: Modifier = Modifier) {
+    val funding = fundingTypeLabel(student)
+    LazyColumn(
+        modifier = modifier.fillMaxSize().background(atuPalette(darkMode).background),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item { AtuSectionHeader("Ödənişlər", subtitle = "Maliyyələşmə statusu və prototip ödəniş axını", darkMode = darkMode) }
+        item {
+            AtuPremiumCard(darkMode = darkMode) {
+                Text("Cari status", color = atuPalette(darkMode).muted, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(funding, color = atuPalette(darkMode).text, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (funding == "Dövlət sifarişli") "Təhsil haqqı universitet tərəfindən qarşılanır." else if (funding == "Ödənişli") "Cari semestr üçün prototip ödəniş izləmə aktivdir." else "Maliyyələşmə növü data əsasında təyin olunmayıb.",
+                    color = atuPalette(darkMode).muted,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        item {
+            AtuPremiumCard(darkMode = darkMode) {
+                Text("Semestr planı", color = atuPalette(darkMode).text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                Spacer(Modifier.height(10.dp))
+                Text("Güz semestri • 0 AZN", color = atuPalette(darkMode).muted, style = MaterialTheme.typography.bodyMedium)
+                Text("Yaz semestri • 0 AZN", color = atuPalette(darkMode).muted, style = MaterialTheme.typography.bodyMedium)
+                Text("Qeyd: bu hissə MVP demo prototipidir.", color = atuPalette(darkMode).primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+private fun fundingTypeLabel(student: StudentProfile): String {
+    val normalized = student.studyForm.uppercase(Locale.ROOT)
+    return when {
+        normalized == "DS" || normalized.contains("DÖVLƏT") || normalized.contains("DOVLET") -> "Dövlət sifarişli"
+        normalized == "ÖD" || normalized == "OD" || normalized.contains("ÖDƏNİŞ") || normalized.contains("ODENIS") -> "Ödənişli"
+        else -> "Təyin edilməyib"
+    }
+}
+
+@Composable
 private fun SettingsTab(
     student: StudentProfile,
     darkMode: Boolean,
@@ -2110,7 +2191,7 @@ private fun SettingsTab(
         item { AtuStudentCard(student, darkMode = darkMode) }
         item {
             AtuSettingsRow(
-                "Dark mode",
+                "Qaranlıq rejim",
                 if (darkMode) "Qaranlıq görünüş aktivdir" else "İşıqlı görünüş aktivdir",
                 if (darkMode) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
                 darkMode,
@@ -2128,6 +2209,7 @@ private fun SettingsTab(
                 darkMode = darkMode
             )
         }
+        item { ProfileInfoRow("Maliyyələşmə növü", fundingTypeLabel(student), Icons.Outlined.CreditCard, darkMode) }
         item {
             Surface(
                 onClick = onReset,
@@ -2137,7 +2219,7 @@ private fun SettingsTab(
                 border = BorderStroke(1.dp, AtuDanger.copy(alpha = if (darkMode) 0.38f else 0.22f))
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("Profili sil və yenidən daxil ol", color = AtuDanger, fontWeight = FontWeight.Black)
+                    Text("Hesabdan çıxış et", color = AtuDanger, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -2187,7 +2269,7 @@ private fun ProfileScreen(
         item {
             AtuHeroCard(
                 title = student.fullName.ifBlank { "ATU tələbəsi" },
-                subtitle = "ID ${student.id.ifBlank { "Təyin edilməyib" }} • ${student.educationLevel.ifBlank { student.studyForm.ifBlank { "Tələbə hesabı" } }}",
+                subtitle = "ID ${student.id.ifBlank { "Təyin edilməyib" }} • ${student.educationLevel.ifBlank { "Tələbə hesabı" }}",
                 darkMode = darkMode,
                 minHeight = 220.dp,
                 trailing = {
@@ -2237,6 +2319,12 @@ private fun ProfileScreen(
                 ProfileMetricCard("Seriya", student.identityCard, Icons.Outlined.CreditCard, darkMode, Modifier.weight(1f))
             }
         }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ProfileMetricCard("Qrup", student.group, Icons.Outlined.MarkChatRead, darkMode, Modifier.weight(1f))
+                ProfileMetricCard("Maliyyələşmə", fundingTypeLabel(student), Icons.Outlined.CreditCard, darkMode, Modifier.weight(1f))
+            }
+        }
         item { AtuSectionHeader("Akademik məlumatlar", subtitle = "Tələbənin əsas tədris identifikatorları", darkMode = darkMode) }
         item { ProfileInfoRow("Fakültə", student.faculty, Icons.Outlined.Badge, darkMode) }
         item { ProfileInfoRow("İxtisas", student.specialty, Icons.Outlined.Campaign, darkMode) }
@@ -2244,8 +2332,20 @@ private fun ProfileScreen(
         item { ProfileInfoRow("Təhsil forması", student.studyForm, Icons.Outlined.Person, darkMode) }
         item { ProfileInfoRow("Təhsil səviyyəsi", student.educationLevel, Icons.Outlined.Security, darkMode) }
         item { ProfileInfoRow("Kurs", student.course, Icons.Outlined.CalendarMonth, darkMode) }
-        item { ProfileInfoRow("Qrup", student.group, Icons.Outlined.MarkChatRead, darkMode) }
         item { ProfileInfoRow("Ata adı", student.fatherName, Icons.Outlined.Person, darkMode) }
+        item {
+            Surface(
+                onClick = onReset,
+                modifier = Modifier.fillMaxWidth().height(56.dp).atuPressScale(),
+                color = if (darkMode) atuPalette(darkMode).surface else AtuWhite,
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, AtuDanger.copy(alpha = if (darkMode) 0.38f else 0.22f))
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("Hesabdan çıxış et", color = AtuDanger, fontWeight = FontWeight.Black)
+                }
+            }
+        }
     }
 }
 
